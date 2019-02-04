@@ -1,6 +1,6 @@
 <?php
 
-namespace LorenzV\PhpVueTemplatePrerender;
+namespace LorenzV\VuePre;
 
 use DOMAttr;
 use DOMCharacterData;

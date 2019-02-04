@@ -34,3 +34,4 @@ $html = $vue->renderComponent('page', $data);
 <div id="app">
     <?php echo $html; ?>
 </div>
+
