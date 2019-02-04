@@ -8,5 +8,12 @@
             "email": "vdvlorenz@gmail.com"
         }
     ],
-    "require": {}
+    "autoload": {
+        "psr-4": {
+            "LorenzV\\PhpVueTemplatePrerender\\": "src"
+        }
+    },
+    "require": {
+        "nicoswd/php-rule-parser": "^0.5.7"
+    }
 }

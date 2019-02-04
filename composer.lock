@@ -1,0 +1,70 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
+        "This file is @generated automatically"
+    ],
+    "hash": "f9b9de0816880aab152444078a7c00e5",
+    "content-hash": "2dbfea704a42c850aad39c65acde02eb",
+    "packages": [
+        {
+            "name": "nicoswd/php-rule-parser",
+            "version": "0.5.7",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/nicoSWD/php-rule-parser.git",
+                "reference": "ab662206a8e6f4b01aa782cde097417dce742d97"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/nicoSWD/php-rule-parser/zipball/ab662206a8e6f4b01aa782cde097417dce742d97",
+                "reference": "ab662206a8e6f4b01aa782cde097417dce742d97",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^5.4.0|^6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "nicoSWD\\Rules\\": "src/nicoSWD/Rules"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Nicolas Oelgart",
+                    "homepage": "https://nicoswd.com",
+                    "role": "Developer"
+                }
+            ],
+            "description": "PHP 7 Rule Parser and Evaluator",
+            "homepage": "https://github.com/nicoSWD/php-rule-parser",
+            "keywords": [
+                "DSL",
+                "evaluator",
+                "highlighter",
+                "javascript",
+                "parser",
+                "rule",
+                "tokenizer",
+                "workflow"
+            ],
+            "time": "2017-10-13 19:47:53"
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": [],
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": [],
+    "platform-dev": []
+}
