@@ -21,14 +21,18 @@ class ConvertJsExpression {
     }
 
     public function parse() {
-        return $this->parseValue($this->expression);
-    }
 
-    public function parseValue($expr) {
+        $expr = $this->expression;
+        $expr = trim($expr);
 
         if ($expr === '') {
             return '';
         }
+
+        return $this->parseValue($expr);
+    }
+
+    public function parseValue($expr) {
 
         $match = null;
 
@@ -37,7 +41,8 @@ class ConvertJsExpression {
         $strReg = "'[^']+'";
         $varReg = '\!?[a-zA-Z_][a-zA-Z0-9_.]*';
         $opReg = ' ?(?:===|==|<=|=>|<|>|!==|!=|&&|\|\|) ?';
-        $exprReg = '\(?:[^()]+\)';
+        $exprReg = '\([^()]+\)';
+        $objReg = '\{[^{}]+\}';
         $valueReg = "(?:$numReg|$strReg|$boolReg|$varReg|$exprReg)";
 
         if (preg_match("/^$numReg$/", $expr, $match)) {
@@ -64,13 +69,43 @@ class ConvertJsExpression {
             return $pre . '\LorenzV\VuePre\ConvertJsExpression::getObjectValue($' . $varName . ', "' . implode(".", $path) . '")';
         }
         if (preg_match("/^($exprReg)$/", $expr, $match)) {
-            return $this->parseValue(trim($expr, '()'));
+            return '(' . $this->parseValue(trim($expr, '()')) . ')';
         }
+        // something ? this : that
+        if (preg_match("/^($valueReg) ?\? ?($valueReg) ?\: ($valueReg)?$/", $expr, $match)) {
+            return $this->parseValue($match[1]) . ' ? ' . $this->parseValue($match[2]) . ' : ' . $this->parseValue($match[3]);
+        }
+        // something === something
         if (preg_match("/^($valueReg)($opReg)($valueReg)$/", $expr, $match)) {
             return $this->parseValue($match[1]) . $match[2] . $this->parseValue($match[3]);
         }
+        // something === something && true
+        if (preg_match("/^($valueReg)($opReg)($valueReg)($opReg)($valueReg)$/", $expr, $match)) {
+            return $this->parseValue($match[1]) . $match[2] . $this->parseValue($match[3]) . $match[4] . $this->parseValue($match[5]);
+        }
+        // something === something && true || something !== 5
+        if (preg_match("/^($valueReg)($opReg)($valueReg)($opReg)($valueReg)($opReg)($valueReg)$/", $expr, $match)) {
+            return $this->parseValue($match[1]) . $match[2] . $this->parseValue($match[3]) . $match[4] . $this->parseValue($match[5]) . $match[6] . $this->parseValue($match[7]);
+        }
 
-        // return $this->expression;
+        // :class="{ active: true }"
+        if (preg_match("/^($objReg)$/", $expr, $match)) {
+            $expr = trim($expr, '{}');
+            $pairs = explode(',', $expr);
+            $result = [];
+            foreach ($pairs as $pair) {
+                $split = explode(':', $pair);
+                if (count($split) < 2) {
+                    $this->fail();
+                }
+                $key = trim($split[0]);
+                array_shift($split);
+                $value = $this->parseValue(trim(implode(':', $split)));
+                $result[] = '((' . $value . ') ? "' . $key . '" : "")';
+            }
+            return implode(' ', $result);
+        }
+
         $this->fail();
     }
 

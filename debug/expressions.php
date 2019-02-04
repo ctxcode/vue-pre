@@ -11,6 +11,9 @@ $data = [
     'foo' => 6,
     'product' => [
         'active' => true,
+        'price' => [
+            'value' => 5,
+        ],
     ],
 ];
 
@@ -27,6 +30,10 @@ $expressions = [
     '!product.active',
     '{ active: product.active }',
     '{ active: product.active ? true : false }',
+    'product.price.value > 5',
+    'product.price.value === 5',
+    'product.price.value < 7',
+    'product.price.value < (product.active ? 7 : 3)',
 ];
 
 $runPhpExpr = function ($ex, $averyrandomvarname) {
