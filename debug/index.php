@@ -8,6 +8,7 @@ $data = [
     'title' => 'Hi',
     'toggle' => true,
     'aclass' => 'laclass',
+    'messages' => explode(' ', 'Hello there my old chum'),
 ];
 
 $benchSeconds = 2;

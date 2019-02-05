@@ -23,11 +23,6 @@ class ConvertJsExpression {
     public function parse() {
 
         $expr = $this->expression;
-        $expr = trim($expr);
-
-        if ($expr === '') {
-            return '';
-        }
 
         return $this->parseValue($expr);
     }
@@ -35,6 +30,7 @@ class ConvertJsExpression {
     public function parseValue($expr) {
 
         $expr = trim($expr);
+
         if ($expr === '') {
             return '';
         }
@@ -125,31 +121,33 @@ class ConvertJsExpression {
         }
 
         // Objects
-        if ($expr === $this->expression) {
-            // :class="{ active: true }"
-            if (preg_match("/^($objReg)$/", $expr, $match)) {
-                $expr = substr($expr, 1, -1);
-                $pairs = explode(',', $expr);
-                $result = [];
-                foreach ($pairs as $pair) {
-                    $split = explode(':', $pair);
-                    if (count($split) < 2) {
-                        $this->fail();
+        if (preg_match("/^$objReg$/", $expr, $match)) {
+            if ($expr === $this->expression) {
+                // :class="{ active: true }"
+                if (preg_match("/^($objReg)$/", $expr, $match)) {
+                    $expr = substr($expr, 1, -1);
+                    $pairs = explode(',', $expr);
+                    $result = [];
+                    foreach ($pairs as $pair) {
+                        $split = explode(':', $pair);
+                        if (count($split) < 2) {
+                            $this->fail();
+                        }
+                        $key = trim($split[0]);
+                        array_shift($split);
+                        $value = $this->parseValue(trim(implode(':', $split)));
+                        $result[] = '((' . $value . ') ? "' . $key . '" : "")';
                     }
-                    $key = trim($split[0]);
-                    array_shift($split);
-                    $value = $this->parseValue(trim(implode(':', $split)));
-                    $result[] = '((' . $value . ') ? "' . $key . '" : "")';
+                    return implode(' ', $result);
                 }
-                return implode(' ', $result);
-            }
-        } else {
-            // if sub expresion like {hi:'hello'} === {hi:helloMessage}
-            // These are pretty useless i think, but why not support it?
+            } else {
+                // if sub expresion like {hi:'hello'} === {hi:helloMessage}
+                // These are pretty useless i think, but why not support it?
 
-            // convert it to a string
-            // FEATURE: maybe later we can convert it to a php object
-            return "'" . addslashes($expr) . "'";
+                // convert it to a string
+                // FEATURE: maybe later we can convert it to a php object
+                return "'" . addslashes($expr) . "'";
+            }
         }
 
         // .indexOf()
