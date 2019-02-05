@@ -1,14 +1,12 @@
 
 <div>
     {{ title }}
-    <div v-if="toggle">Yep</div>
+    VHTML: <div v-if="toggle" v-html="title">x</div>
     <div v-else>Nope</div>
     <div :class="aclass">Class-Text</div>
     <div v-for="msg in messages">{{ msg }}</div>
 
-    {{ title}}
-
-    <!-- {{ title }}
+    {{ title }}
     <div v-if="toggle">Yep</div>
     <div v-else>Nope</div>
     <div :class="aclass">Class-Text</div>
@@ -2994,5 +2992,5 @@
     <div :class="aclass">Class-Text</div>
     {{ title }}
     <div v-if="toggle">Yep</div>
-    <div v-else>Nope</div> -->
+    <div v-else>Nope</div>
 </div>

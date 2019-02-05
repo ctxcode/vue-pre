@@ -194,7 +194,7 @@ class VuePre {
             preg_match_all($regex, $text, $matches);
             foreach ($matches['expression'] as $index => $expression) {
                 $phpExpr = ConvertJsExpression::convert($expression);
-                $text = str_replace($matches[0][$index], static::PHPOPEN . ' echo (' . $phpExpr . '); ' . static::PHPEND, $text);
+                $text = str_replace($matches[0][$index], static::PHPOPEN . ' echo htmlspecialchars(' . $phpExpr . '); ' . static::PHPEND, $text);
             }
             if ($text !== $node->nodeValue) {
                 $newNode = $node->ownerDocument->createTextNode($text);
@@ -279,11 +279,11 @@ class VuePre {
         }
         /** @var DOMElement $node */
         if ($node->hasAttribute('v-html')) {
-            $variableName = $node->getAttribute('v-html');
+            $expr = $node->getAttribute('v-html');
             $node->removeAttribute('v-html');
-            $newNode = $node->cloneNode(true);
-            $this->appendHTML($newNode, $data[$variableName]);
-            $node->parentNode->replaceChild($newNode, $node);
+            $phpExpr = ConvertJsExpression::convert($expr);
+            $text = static::PHPOPEN . ' echo (' . $phpExpr . '); ' . static::PHPEND;
+            $node->textContent = $text;
         }
     }
 

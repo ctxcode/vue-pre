@@ -5,7 +5,7 @@ ini_set('display_errors', 1);
 include __DIR__ . '/../vendor/autoload.php';
 
 $data = [
-    'title' => 'Hi',
+    'title' => '<h2>Hi</h2>',
     'toggle' => true,
     'aclass' => 'laclass',
     'messages' => explode(' ', 'Hello there my old chum'),
