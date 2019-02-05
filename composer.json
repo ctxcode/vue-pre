@@ -1,10 +1,10 @@
 {
-    "name": "root/php-vue-template-prerender",
+    "name": "lorenzv/php-vue-template-prerender",
     "description": "Prerender vue.js templates in PHP",
     "type": "library",
     "authors": [
         {
-            "name": "LorenzV",
+            "name": "Lorenz Vandevelde",
             "email": "vdvlorenz@gmail.com"
         }
     ],
