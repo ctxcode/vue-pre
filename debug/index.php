@@ -22,8 +22,6 @@ $vue->setComponentDirectory(__DIR__ . '/templates');
 
 // while (time() < $end) {
 //     $html = $vue->renderComponent('page', $data);
-//     // $html = phpTemplate(__DIR__ . '/test.php', $data);
-//     // $htmllen += strlen($html);
 //     $compileTimes++;
 // }
 // echo 'Compiled ' . ($compileTimes / $benchSeconds) . ' times per second';

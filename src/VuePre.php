@@ -189,14 +189,14 @@ class VuePre {
      */
     private function replaceMustacheVariables(DOMNode $node) {
         if ($node instanceof DOMText) {
-            $text = $node->wholeText;
+            $text = $node->nodeValue;
             $regex = '/\{\{(?P<expression>.*?)\}\}/x';
             preg_match_all($regex, $text, $matches);
             foreach ($matches['expression'] as $index => $expression) {
                 $phpExpr = ConvertJsExpression::convert($expression);
                 $text = str_replace($matches[0][$index], static::PHPOPEN . ' echo (' . $phpExpr . '); ' . static::PHPEND, $text);
             }
-            if ($text !== $node->wholeText) {
+            if ($text !== $node->nodeValue) {
                 $newNode = $node->ownerDocument->createTextNode($text);
                 $node->parentNode->replaceChild($newNode, $node);
             }
