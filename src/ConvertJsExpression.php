@@ -94,11 +94,11 @@ class ConvertJsExpression {
             array_shift($path);
             return $pre . '\LorenzV\VuePre\ConvertJsExpression::getObjectValue($' . $varName . ', "' . implode(".", $path) . '")';
         }
-        // (this === something)
+        // ( ... )
         if ($this->match($exprReg, $expr, $match)) {
             return '(' . $this->parseValue(substr($expr, 1, -1)) . ')';
         }
-        // [1, 'test', bool, true, hit ? or : miss]
+        // [ ... ]
         if ($this->match($arrReg, $expr, $match)) {
             $values = substr($expr, 1, -1);
             $values = explode(',', $values);
@@ -113,11 +113,7 @@ class ConvertJsExpression {
             return $this->parseValue($match[1]) . ' ? ' . $this->parseValue($match[2]) . ' : ' . $this->parseValue($match[3]);
         }
         // something === something
-        // echo htmlspecialchars("^$compareRegGroups$");
-        // exit;
         if ($this->match($compareRegGroups, $expr, $match)) {
-            // var_dump($expr);
-            // exit;
             return $this->parseValue($match[1]) . $match[2] . $this->parseValue($match[3]);
         }
         // something === something && true
@@ -139,7 +135,7 @@ class ConvertJsExpression {
             return $pre . '$' . $match[1] . '(' . $this->parseValue($subExpr) . ')';
         }
 
-        // Objects
+        // { ... }
         if ($this->match($objReg, $expr, $match)) {
             if ($expr === $this->expression) {
                 // :class="{ active: true }"
