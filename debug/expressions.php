@@ -49,9 +49,9 @@ $expressions = [
     '[1, true].indexOf(true)',
     "'abc'.indexOf('b')",
     "product.name.indexOf('a')",
-    '[1, true].length()',
-    "'abc'.length()",
-    'product.name.length()',
+    '[1, true].length',
+    "'abc'.length",
+    'product.name.length',
     'myFunc()',
     'price(product)',
 ];

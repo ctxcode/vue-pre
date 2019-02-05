@@ -9,6 +9,10 @@ $data = [
     'toggle' => true,
     'aclass' => 'laclass',
     'messages' => explode(' ', 'Hello there my old chum'),
+    'myVar' => 'Hello',
+    'myObject' => (object) [
+        'myProp' => 'World',
+    ],
 ];
 
 $benchSeconds = 2;

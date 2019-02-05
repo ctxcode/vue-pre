@@ -95,6 +95,21 @@ class VuePre {
         $html = str_replace(static::PHPOPEN, '<?php', $html);
         $html = str_replace(static::PHPEND, '?>', $html);
 
+        // Revert html escaping within php tags
+        $offset = 0;
+        while (true) {
+            $found = preg_match('/<\?php(.*)\?>/', $html, $match, PREG_OFFSET_CAPTURE, $offset);
+            if (!$found) {
+                break;
+            }
+            $code = $match[1][0];
+            $code = htmlspecialchars_decode($code);
+            $code = '<?php' . $code . '?>';
+            $html = substr_replace($html, $code, $match[0][1], strlen($match[0][0]));
+
+            $offset = $match[0][1] + 1;
+        }
+
         return $html;
     }
 

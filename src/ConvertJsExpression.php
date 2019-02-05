@@ -41,31 +41,46 @@ class ConvertJsExpression {
         $boolReg = '(?:true|false)';
         $strReg = "'[^']+'";
         $varReg = '\!?[a-zA-Z_][a-zA-Z0-9_.]*';
-        $opReg = ' *(?:===|==|<=|=>|<|>|!==|!=|&&|\|\|+|-|\\|*) *';
-        $exprReg = '\((?:[^()]|(?R))*\)';
-        $arrReg = '\[(?:[^\[\]]|(?R))*\]';
-        $objReg = '\{(?:[^{}]|(?R))*\}';
+        $opReg = ' *(?:===|==|<=|=>|<|>|!==|!=|\+|-|\/|\*|&&|\|\|) *';
+
+        // Recursive regexes
+        $exprReg = '\g<exprReg>';
+        $arrReg = '\g<arrReg>';
+        $objReg = '\g<objReg>';
+
         $funcReg = "\!?[a-zA-Z_][a-zA-Z0-9_]*$exprReg";
         $funcRegGroups = "\!?([a-zA-Z_][a-zA-Z0-9_]*)($exprReg)";
 
         $arrOrStrReg = "(?:$varReg|$strReg|$arrReg|$objReg|$exprReg|$funcReg)";
+
         $indexOfReg = "$arrOrStrReg\.indexOf$exprReg";
         $indexOfRegGroups = "($arrOrStrReg)\.indexOf($exprReg)";
-        $lengthReg = "$arrOrStrReg\.length\(\)";
-        $lengthRegGroups = "($arrOrStrReg)\.length\(\)";
+        $lengthReg = "$arrOrStrReg\.length";
+        $lengthRegGroups = "($arrOrStrReg)\.length";
 
-        $valueReg = "(?:$numReg|$strReg|$boolReg|$varReg|$arrReg|$objReg|$exprReg|$indexOfReg|$lengthReg|$funcReg)";
+        $valueReg = "(?:$numReg|$strReg|$boolReg|$lengthReg|$varReg|$arrReg|$objReg|$exprReg|$indexOfReg|$funcReg)";
 
-        if (preg_match("/^$numReg$/", $expr, $match)) {
+        $compareReg = "$valueReg$opReg$valueReg";
+        $compareRegGroups = "($valueReg)($opReg)($valueReg)";
+
+        // $valueReg = "(?:$numReg|$strReg|$boolReg|$lengthReg|$varReg|$arrReg|$objReg|$exprReg|$indexOfReg|$funcReg|$compareReg)";
+
+        if ($this->match($numReg, $expr, $match)) {
             return $expr;
         }
-        if (preg_match("/^$strReg$/", $expr, $match)) {
+        if ($this->match($strReg, $expr, $match)) {
             return $expr;
         }
-        if (preg_match("/^$boolReg$/", $expr, $match)) {
+        if ($this->match($boolReg, $expr, $match)) {
             return $expr;
         }
-        if (preg_match("/^$varReg$/", $expr, $match)) {
+        // .length , must be before var regex
+        if ($this->match($lengthReg, $expr, $match)) {
+            $this->match($lengthRegGroups, $expr, $match);
+            $value = $this->parseValue($match[1]);
+            return "\LorenzV\VuePre\ConvertJsExpression::length($value)"; // Make to return -1 instead of false
+        }
+        if ($this->match($varReg, $expr, $match)) {
             $pre = '';
             if ($expr[0] === '!') {
                 $expr = substr($expr, 1);
@@ -80,11 +95,11 @@ class ConvertJsExpression {
             return $pre . '\LorenzV\VuePre\ConvertJsExpression::getObjectValue($' . $varName . ', "' . implode(".", $path) . '")';
         }
         // (this === something)
-        if (preg_match("/^($exprReg)$/", $expr, $match)) {
+        if ($this->match($exprReg, $expr, $match)) {
             return '(' . $this->parseValue(substr($expr, 1, -1)) . ')';
         }
         // [1, 'test', bool, true, hit ? or : miss]
-        if (preg_match("/^($arrReg)$/", $expr, $match)) {
+        if ($this->match($arrReg, $expr, $match)) {
             $values = substr($expr, 1, -1);
             $values = explode(',', $values);
             $result = [];
@@ -94,24 +109,28 @@ class ConvertJsExpression {
             return '[' . implode(',', $result) . ']';
         }
         // something ? this : that
-        if (preg_match("/^($valueReg) *\? *($valueReg) *\: *($valueReg)?$/", $expr, $match)) {
+        if ($this->match("($valueReg) *\? *($valueReg) *\: *($valueReg)", $expr, $match)) {
             return $this->parseValue($match[1]) . ' ? ' . $this->parseValue($match[2]) . ' : ' . $this->parseValue($match[3]);
         }
         // something === something
-        if (preg_match("/^($valueReg)($opReg)($valueReg)$/", $expr, $match)) {
+        // echo htmlspecialchars("^$compareRegGroups$");
+        // exit;
+        if ($this->match($compareRegGroups, $expr, $match)) {
+            // var_dump($expr);
+            // exit;
             return $this->parseValue($match[1]) . $match[2] . $this->parseValue($match[3]);
         }
         // something === something && true
-        if (preg_match("/^($valueReg)($opReg)($valueReg)($opReg)($valueReg)$/", $expr, $match)) {
+        if ($this->match("($valueReg)($opReg)($valueReg)($opReg)($valueReg)", $expr, $match)) {
             return $this->parseValue($match[1]) . $match[2] . $this->parseValue($match[3]) . $match[4] . $this->parseValue($match[5]);
         }
         // something === something && true || something !== 5
-        if (preg_match("/^($valueReg)($opReg)($valueReg)($opReg)($valueReg)($opReg)($valueReg)$/", $expr, $match)) {
+        if ($this->match("($valueReg)($opReg)($valueReg)($opReg)($valueReg)($opReg)($valueReg)", $expr, $match)) {
             return $this->parseValue($match[1]) . $match[2] . $this->parseValue($match[3]) . $match[4] . $this->parseValue($match[5]) . $match[6] . $this->parseValue($match[7]);
         }
         // Functions: myFunc(...)
-        if (preg_match("/^$funcReg$/", $expr, $match)) {
-            preg_match("/^$funcRegGroups$/", $expr, $match);
+        if ($this->match($funcReg, $expr, $match)) {
+            $this->match($funcRegGroups, $expr, $match);
             $pre = '';
             if ($expr[0] === '!') {
                 $pre = '!';
@@ -121,25 +140,23 @@ class ConvertJsExpression {
         }
 
         // Objects
-        if (preg_match("/^$objReg$/", $expr, $match)) {
+        if ($this->match($objReg, $expr, $match)) {
             if ($expr === $this->expression) {
                 // :class="{ active: true }"
-                if (preg_match("/^($objReg)$/", $expr, $match)) {
-                    $expr = substr($expr, 1, -1);
-                    $pairs = explode(',', $expr);
-                    $result = [];
-                    foreach ($pairs as $pair) {
-                        $split = explode(':', $pair);
-                        if (count($split) < 2) {
-                            $this->fail();
-                        }
-                        $key = trim($split[0]);
-                        array_shift($split);
-                        $value = $this->parseValue(trim(implode(':', $split)));
-                        $result[] = '((' . $value . ') ? "' . $key . '" : "")';
+                $subExpr = substr($expr, 1, -1);
+                $pairs = explode(',', $subExpr);
+                $result = [];
+                foreach ($pairs as $pair) {
+                    $split = explode(':', $pair);
+                    if (count($split) < 2) {
+                        $this->fail();
                     }
-                    return implode(' ', $result);
+                    $key = trim($split[0]);
+                    array_shift($split);
+                    $value = $this->parseValue(trim(implode(':', $split)));
+                    $result[] = '((' . $value . ') ? "' . $key . '" : "")';
                 }
+                return implode(' ', $result);
             } else {
                 // if sub expresion like {hi:'hello'} === {hi:helloMessage}
                 // These are pretty useless i think, but why not support it?
@@ -151,21 +168,28 @@ class ConvertJsExpression {
         }
 
         // .indexOf()
-        if (preg_match("/^$indexOfReg$/", $expr, $match)) {
-            preg_match("/^$indexOfRegGroups$/", $expr, $match);
+        if ($this->match($indexOfReg, $expr, $match)) {
+            $this->match($indexOfRegGroups, $expr, $match);
             $haystack = $this->parseValue($match[1]);
             $needle = $this->parseValue(substr($match[2], 1, -1));
             return "\LorenzV\VuePre\ConvertJsExpression::indexOf($haystack, $needle)"; // Make to return -1 instead of false
         }
 
-        // .length()
-        if (preg_match("/^$lengthReg$/", $expr, $match)) {
-            preg_match("/^$lengthRegGroups$/", $expr, $match);
-            $value = $this->parseValue($match[1]);
-            return "\LorenzV\VuePre\ConvertJsExpression::length($value)"; // Make to return -1 instead of false
-        }
-
         $this->fail();
+    }
+
+    public function match($regex, $expr, &$match) {
+
+        // Recursive definitions
+        $exprReg = '(?:(?<exprReg>\((?:[^\(\)]|(?:\g<exprReg>))*\))){0}';
+        $arrReg = '(?:(?<arrReg>\[(?:[^\[\]]|(?:\g<arrReg>))*\])){0}';
+        $objReg = '(?:(?<objReg>\{(?:[^\{\}]|(?:\g<objReg>))*\})){0}';
+
+        $pre = "$exprReg$arrReg$objReg";
+
+        $result = preg_match("/^(?J)$pre$regex$/", $expr, $match);
+        $match = array_values(array_filter($match));
+        return $result;
     }
 
     public function fail() {
