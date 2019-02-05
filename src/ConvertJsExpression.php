@@ -174,7 +174,7 @@ class ConvertJsExpression {
         $this->fail();
     }
 
-    public function match($regex, $expr, &$match) {
+    public function match($regex, $expr, &$match, $debug = false) {
 
         // Recursive definitions
         $exprReg = '(?:(?<exprReg>\((?:[^\(\)]|(?:\g<exprReg>))*\))){0}';
@@ -182,10 +182,22 @@ class ConvertJsExpression {
         $objReg = '(?:(?<objReg>\{(?:[^\{\}]|(?:\g<objReg>))*\})){0}';
 
         $pre = "$exprReg$arrReg$objReg";
+        $regex = "/^(?J)$pre$regex$/";
 
-        $result = preg_match("/^(?J)$pre$regex$/", $expr, $match);
-        $match = array_values(array_filter($match));
+        if ($debug) {
+            echo '<div>' . $expr . '</div>';
+            echo htmlspecialchars($regex);
+            exit;
+        }
+
+        $result = preg_match($regex, $expr, $match);
+        $match = array_values(array_filter($match, '\LorenzV\VuePre\ConvertJsExpression::filterRegexResults'));
         return $result;
+    }
+
+    public static function filterRegexResults($res) {
+        if ($res === '') {return false;}
+        return true;
     }
 
     public function fail() {

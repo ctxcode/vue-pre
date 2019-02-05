@@ -2,12 +2,10 @@
 
 namespace LorenzV\VuePre;
 
-use DOMAttr;
 use DOMCharacterData;
 use DOMDocument;
 use DOMElement;
 use DOMNode;
-use DOMNodeList;
 use DOMText;
 use Exception;
 use LibXMLError;
@@ -19,7 +17,7 @@ class VuePre {
     private $componentDir = null;
     private $cacheDir = null;
     private $componentAlias = [];
-    public $devMode = false;
+    public $disableCache = false;
 
     const PHPOPEN = '__VUEPREPHPTAG__';
     const PHPEND = '__VUEPREPHPENDTAG__';
@@ -68,11 +66,11 @@ class VuePre {
 
         // Cache
         // $hash = hash_file('md5', $fullPath);
-        $hash = md5($fullPath . filesize($fullPath));
+        $hash = md5($fullPath . filesize($fullPath) . json_encode($this->componentAlias));
         $cacheFile = $this->cacheDir . '/' . $hash . '.php';
 
         // Create cache template
-        if (!file_exists($cacheFile) || $this->devMode) {
+        if (!file_exists($cacheFile) || $this->disableCache) {
             $html = file_get_contents($fullPath);
             $html = $this->createCachedTemplate($html);
             file_put_contents($cacheFile, $html);
@@ -171,18 +169,19 @@ class VuePre {
         if (!$this->isTextNode($node)) {
             $this->stripEventHandlers($node);
             $this->handleFor($node, $options);
+            $this->handleComponent($node, $options);
             $this->handleRawHtml($node);
-            // if (!$this->isRemovedFromTheDom($node)) {
-            $this->handleAttributeBinding($node);
-            $this->handleIf($node, $options);
-            $subOptions = $options;
-            $subOptions['nodeDepth'] += 1;
-            $subNodes = iterator_to_array($node->childNodes);
-            foreach ($subNodes as $index => $childNode) {
-                $subOptions['nextSibling'] = isset($subNodes[$index + 1]) ? $subNodes[$index + 1] : null;
-                $this->handleNode($childNode, $subOptions);
+            if (!$this->isRemovedFromTheDom($node)) {
+                $this->handleAttributeBinding($node);
+                $this->handleIf($node, $options);
+                $subOptions = $options;
+                $subOptions['nodeDepth'] += 1;
+                $subNodes = iterator_to_array($node->childNodes);
+                foreach ($subNodes as $index => $childNode) {
+                    $subOptions['nextSibling'] = isset($subNodes[$index + 1]) ? $subNodes[$index + 1] : null;
+                    $this->handleNode($childNode, $subOptions);
+                }
             }
-            // }
         }
     }
 
@@ -190,7 +189,6 @@ class VuePre {
         if ($this->isTextNode($node)) {
             return;
         }
-        /** @var DOMAttr $attribute */
         foreach ($node->attributes as $attribute) {
             if (strpos($attribute->name, 'v-on:') === 0) {
                 $node->removeAttribute($attribute->name);
@@ -198,10 +196,6 @@ class VuePre {
         }
     }
 
-    /**
-     * @param DOMNode $node
-     * @param array $data
-     */
     private function replaceMustacheVariables(DOMNode $node) {
         if ($node instanceof DOMText) {
             $text = $node->nodeValue;
@@ -217,22 +211,51 @@ class VuePre {
             }
         }
     }
+
     private function handleAttributeBinding(DOMElement $node) {
-        /** @var DOMAttr $attribute */
         foreach (iterator_to_array($node->attributes) as $attribute) {
             if (!preg_match('/^:[\w-]+$/', $attribute->name)) {
                 continue;
             }
-            $phpExpr = ConvertJsExpression::convert($attribute->value);
             $name = substr($attribute->name, 1);
-            $node->setAttribute($name, static::PHPOPEN . ' echo (' . $phpExpr . '); ' . static::PHPEND);
+            if ($name === 'class') {
+                $phpExpr = ConvertJsExpression::convert($attribute->value);
+                $node->setAttribute($name, static::PHPOPEN . ' echo (' . $phpExpr . '); ' . static::PHPEND);
+            }
             $node->removeAttribute($attribute->name);
         }
     }
-    /**
-     * @param DOMNodeList $nodes
-     * @param array $data
-     */
+
+    private function handleComponent(DOMNode $node) {
+        if ($this->isTextNode($node)) {
+            return;
+        }
+        $tagName = $node->tagName;
+        if (!isset($this->componentAlias[$tagName])) {
+            return;
+        }
+        $component = $this->componentAlias[$tagName];
+        $data = [];
+        foreach (iterator_to_array($node->attributes) as $attribute) {
+            if (!preg_match('/^:[\w-]+$/', $attribute->name)) {
+                continue;
+            }
+
+            $name = substr($attribute->name, 1);
+            if ($name === 'class') {
+                continue;
+            }
+
+            $phpExpr = ConvertJsExpression::convert($attribute->value);
+            $data[] = "'$name' => " . $phpExpr;
+            $node->removeAttribute($attribute->name);
+        }
+        $dataString = implode(', ', $data);
+        $newNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' echo $this->renderComponent(\'' . $component . '\', [' . $dataString . ']); ' . static::PHPEND);
+        $node->parentNode->replaceChild($newNode, $node);
+        // $this->removeNode($node);
+    }
+
     private function handleIf(DOMNode $node, array $options) {
         if ($this->isTextNode($node)) {
             return;
