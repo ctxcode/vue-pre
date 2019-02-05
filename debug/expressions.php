@@ -16,6 +16,12 @@ $data = [
             'value' => 5,
         ],
     ],
+    'myFunc' => function () {
+        return 'mayo';
+    },
+    'price' => function ($product) {
+        return $product['price']['value'];
+    },
 ];
 
 $expressions = [
@@ -46,6 +52,8 @@ $expressions = [
     '[1, true].length()',
     "'abc'.length()",
     'product.name.length()',
+    'myFunc()',
+    'price(product)',
 ];
 
 $runPhpExpr = function ($ex, $averyrandomvarname) {

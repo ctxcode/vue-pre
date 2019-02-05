@@ -34,6 +34,11 @@ class ConvertJsExpression {
 
     public function parseValue($expr) {
 
+        $expr = trim($expr);
+        if ($expr === '') {
+            return '';
+        }
+
         $match = null;
 
         $numReg = '[0-9]+';
@@ -44,14 +49,16 @@ class ConvertJsExpression {
         $exprReg = '\((?:[^()]|(?R))*\)';
         $arrReg = '\[(?:[^\[\]]|(?R))*\]';
         $objReg = '\{(?:[^{}]|(?R))*\}';
+        $funcReg = "\!?[a-zA-Z_][a-zA-Z0-9_]*$exprReg";
+        $funcRegGroups = "\!?([a-zA-Z_][a-zA-Z0-9_]*)($exprReg)";
 
-        $arrOrStrReg = "(?:$varReg|$strReg|$arrReg|$objReg|$exprReg)";
+        $arrOrStrReg = "(?:$varReg|$strReg|$arrReg|$objReg|$exprReg|$funcReg)";
         $indexOfReg = "$arrOrStrReg\.indexOf$exprReg";
         $indexOfRegGroups = "($arrOrStrReg)\.indexOf($exprReg)";
         $lengthReg = "$arrOrStrReg\.length\(\)";
         $lengthRegGroups = "($arrOrStrReg)\.length\(\)";
 
-        $valueReg = "(?:$numReg|$strReg|$boolReg|$varReg|$arrReg|$objReg|$exprReg|$indexOfReg|$lengthReg)";
+        $valueReg = "(?:$numReg|$strReg|$boolReg|$varReg|$arrReg|$objReg|$exprReg|$indexOfReg|$lengthReg|$funcReg)";
 
         if (preg_match("/^$numReg$/", $expr, $match)) {
             return $expr;
@@ -106,6 +113,16 @@ class ConvertJsExpression {
         if (preg_match("/^($valueReg)($opReg)($valueReg)($opReg)($valueReg)($opReg)($valueReg)$/", $expr, $match)) {
             return $this->parseValue($match[1]) . $match[2] . $this->parseValue($match[3]) . $match[4] . $this->parseValue($match[5]) . $match[6] . $this->parseValue($match[7]);
         }
+        // Functions: myFunc(...)
+        if (preg_match("/^$funcReg$/", $expr, $match)) {
+            preg_match("/^$funcRegGroups$/", $expr, $match);
+            $pre = '';
+            if ($expr[0] === '!') {
+                $pre = '!';
+            }
+            $subExpr = substr($match[2], 1, -1);
+            return $pre . '$' . $match[1] . '(' . $this->parseValue($subExpr) . ')';
+        }
 
         // Objects
         if ($expr === $this->expression) {
@@ -139,7 +156,7 @@ class ConvertJsExpression {
         if (preg_match("/^$indexOfReg$/", $expr, $match)) {
             preg_match("/^$indexOfRegGroups$/", $expr, $match);
             $haystack = $this->parseValue($match[1]);
-            $needle = $this->parseValue($match[2]);
+            $needle = $this->parseValue(substr($match[2], 1, -1));
             return "\LorenzV\VuePre\ConvertJsExpression::indexOf($haystack, $needle)"; // Make to return -1 instead of false
         }
 
