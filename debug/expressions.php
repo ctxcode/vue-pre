@@ -10,6 +10,7 @@ use \LorenzV\VuePre\ConvertJsExpression;
 $data = [
     'foo' => 6,
     'product' => [
+        'name' => 'Foobar',
         'active' => true,
         'price' => [
             'value' => 5,
@@ -34,6 +35,17 @@ $expressions = [
     'product.price.value === 5',
     'product.price.value < 7',
     'product.price.value < (product.active ? 7 : 3)',
+    '[1, 2] === [1, 2]',
+    '[1, 2] !== [1, 2]',
+    '[1, true] === [1, product.active]',
+    '[1, true].indexOf(1)',
+    '[1, true].indexOf(2)',
+    '[1, true].indexOf(true)',
+    "'abc'.indexOf('b')",
+    "product.name.indexOf('a')",
+    '[1, true].length()',
+    "'abc'.length()",
+    'product.name.length()',
 ];
 
 $runPhpExpr = function ($ex, $averyrandomvarname) {
@@ -42,9 +54,9 @@ $runPhpExpr = function ($ex, $averyrandomvarname) {
     }
 
     try {
-        ini_set('display_errors', 0);
+        // ini_set('display_errors', 0);
         eval('$res = (' . $ex . ');');
-        ini_set('display_errors', 1);
+        // ini_set('display_errors', 1);
         if (is_bool($res)) {
             $res = $res ? 'true' : 'false';
         }
