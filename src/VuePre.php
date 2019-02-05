@@ -12,9 +12,6 @@ use DOMText;
 use Exception;
 use LibXMLError;
 //
-use LorenzV\PhpVueTemplatePrerender\FilterExpressionParsing\FilterParser;
-use LorenzV\PhpVueTemplatePrerender\JsParsing\BasicJsExpressionParser;
-use LorenzV\PhpVueTemplatePrerender\JsParsing\CachingExpressionParser;
 
 class VuePre {
 

@@ -14,7 +14,7 @@ $benchSeconds = 2;
 $end = time() + $benchSeconds;
 $compileTimes = 0;
 
-$vue = new \LorenzV\PhpVueTemplatePrerender\VuePre();
+$vue = new \LorenzV\VuePre\VuePre();
 $vue->devMode = true;
 $vue->setCacheDirectory(__DIR__ . '/cache');
 $vue->setComponentDirectory(__DIR__ . '/templates');

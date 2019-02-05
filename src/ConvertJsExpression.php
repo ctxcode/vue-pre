@@ -45,7 +45,7 @@ class ConvertJsExpression {
         $boolReg = '(?:true|false)';
         $strReg = "'[^']+'";
         $varReg = '\!?[a-zA-Z_][a-zA-Z0-9_.]*';
-        $opReg = ' ?(?:===|==|<=|=>|<|>|!==|!=|&&|\|\|) ?';
+        $opReg = ' *(?:===|==|<=|=>|<|>|!==|!=|&&|\|\|) *';
         $exprReg = '\((?:[^()]|(?R))*\)';
         $arrReg = '\[(?:[^\[\]]|(?R))*\]';
         $objReg = '\{(?:[^{}]|(?R))*\}';
@@ -98,7 +98,7 @@ class ConvertJsExpression {
             return '[' . implode(',', $result) . ']';
         }
         // something ? this : that
-        if (preg_match("/^($valueReg) ?\? ?($valueReg) ?\: ($valueReg)?$/", $expr, $match)) {
+        if (preg_match("/^($valueReg) *\? *($valueReg) *\: *($valueReg)?$/", $expr, $match)) {
             return $this->parseValue($match[1]) . ' ? ' . $this->parseValue($match[2]) . ' : ' . $this->parseValue($match[3]);
         }
         // something === something
