@@ -84,7 +84,7 @@ class VuePre {
 
     public function renderHtml($template, $data = []) {
 
-        $hash = md5($template);
+        $hash = md5($template . filemtime(__FILE__)); // If package is updated, hash should change
         $cacheFile = $this->cacheDir . '/' . $hash . '.php';
 
         // Create cache template
