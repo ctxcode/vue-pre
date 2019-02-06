@@ -40,7 +40,8 @@ class ConvertJsExpression {
         $numReg = '[0-9]+';
         $boolReg = '(?:true|false|null)';
         $strReg = "'[^']+'";
-        $varReg = '\!?[a-zA-Z_][a-zA-Z0-9_.]*';
+        // $varReg = '\!?[a-zA-Z_][a-zA-Z0-9_.]*';
+        $varReg = '\!?[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+|\g<arrReg>)*';
         $opReg = ' *(?:===|==|<=|=>|<|>|!==|!=|\+|-|\/|\*|&&|\|\|) *';
 
         // Recursive regexes
@@ -81,13 +82,31 @@ class ConvertJsExpression {
                 $expr = substr($expr, 1);
                 $pre = '!';
             }
-            $path = explode('.', $expr);
-            if (count($path) === 1) {
+
+            // Var name
+            $varName = $expr;
+            if ($pos = strpos($varName, ".")) {$varName = substr($varName, 0, $pos);}
+            if ($pos = strpos($varName, "[")) {$varName = substr($varName, 0, $pos);}
+
+            $subExpr = substr($expr, strlen($varName));
+            $this->match("(\.[a-zA-Z0-9_]+|\g<arrReg>)", $expr, $matches, ['all' => true]);
+
+            if (count($matches) === 0 || count($matches[1]) === 0) {
                 return $pre . '$' . $expr;
             }
-            $varName = $path[0];
-            array_shift($path);
-            return $pre . '\LorenzV\VuePre\ConvertJsExpression::getObjectValue($' . $varName . ', "' . implode(".", $path) . '")';
+
+            // Recursive
+            $path = [];
+            foreach ($matches[1] as $amatch) {
+                if ($amatch[0] === '.') {
+                    $path[] = "'" . substr($amatch, 1) . "'";
+                }
+                if ($amatch[0] === '[') {
+                    $path[] = $this->parseValue(substr($amatch, 1, -1));
+                }
+            }
+
+            return $pre . '\LorenzV\VuePre\ConvertJsExpression::getObjectValue($' . $varName . ', [' . implode(", ", $path) . '])';
         }
         // ( ... )
         if ($this->match($exprReg, $expr, $match)) {
@@ -242,7 +261,7 @@ class ConvertJsExpression {
     }
 
     public static function getObjectValue($obj, $path) {
-        foreach (explode('.', $path) as $key) {
+        foreach ($path as $key) {
             $obj = is_array($obj) ? $obj[$key] : $obj->$key;
         }
 

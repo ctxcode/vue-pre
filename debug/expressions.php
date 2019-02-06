@@ -40,6 +40,8 @@ $expressions = [
     'str + str + \'___\' + str',
     'product',
     'product.active',
+    'product[\'active\']',
+    'product[(product.active ? \'name\' : \'active\')]',
     '!product',
     '!product.active',
     '{ active: product.active }',
