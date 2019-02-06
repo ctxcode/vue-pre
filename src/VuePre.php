@@ -160,7 +160,14 @@ class VuePre {
     public function generateTemplateScriptsHtml() {
         $result = '';
         foreach ($this->renderedComponents as $name => $c) {
-            $result .= '<script type="text/template" id="vue-template-' . $name . '">' . ($c['template']) . '</script>';
+            $tagName = $name;
+            foreach ($this->componentAlias as $tag => $longName) {
+                if ($name === $longName) {
+                    $tagName = $tag;
+                    break;
+                }
+            }
+            $result .= '<script type="text/template" id="vue-template-' . $tagName . '">' . ($c['template']) . '</script>';
         }
         return $result;
     }
@@ -330,7 +337,7 @@ class VuePre {
                 $node->setAttribute($name, static::PHPOPEN . ' echo (' . $phpExpr . '); ' . static::PHPEND);
             }
 
-            if ($name === 'component') {
+            if ($node->tagName === 'component' && $name === 'is') {
                 $phpExpr = ConvertJsExpression::convert($attribute->value);
                 $this->replaceNodeWithComponent($node, $phpExpr, true);
                 return;
