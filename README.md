@@ -94,8 +94,8 @@ $vue->setComponentAlias([
 ->setComponentBeforeMount(Array<String $componentName, AnonFunction>)
 // If you dont want a componentDirectory, use setComponentTemplate
 ->setComponentTemplate(Array<String $componentName, String $template>) 
-// Returns an array of all templates that were used while rendering
-->getRenderedTemplates() 
+// Returns an array of all components that were used while rendering
+->getRenderedComponents() 
 
 # HTML Generating
 ->generateTemplateScriptsHtml()

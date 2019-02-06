@@ -19,7 +19,7 @@ class VuePre {
 
     private $componentAlias = [];
     private $methods = [];
-    private $renderedTemplates = [];
+    private $renderedComponents = [];
     private $componentBeforeMount = [];
     private $settingsLoaded = [];
     private $componentTemplates = [];
@@ -145,16 +145,16 @@ class VuePre {
         $html = $this->renderHtml($template, $data);
 
         // Remember
-        if (!isset($this->renderedTemplates[$path])) {
-            $this->renderedTemplates[$path] = ['name' => $path, 'template' => $template];
+        if (!isset($this->renderedComponents[$path])) {
+            $this->renderedComponents[$path] = ['name' => $path, 'template' => $template];
         }
 
         //
         return $html;
     }
 
-    public function getRenderedTemplates() {
-        return $this->renderedTemplates;
+    public function getRenderedComponents() {
+        return $this->renderedComponents;
     }
 
     public function generateTemplateScriptsHtml() {
