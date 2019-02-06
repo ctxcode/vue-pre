@@ -28,7 +28,9 @@ $data = [
 $expressions = [
     'foo',
     'foo > 6 === true',
-    'foo < 6',
+    'foo < 8',
+    'foo < -6',
+    'foo > -6',
     'foo == 6',
     "foo == '6'",
     'foo === 6',

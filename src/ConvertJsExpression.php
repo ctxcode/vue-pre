@@ -37,10 +37,9 @@ class ConvertJsExpression {
 
         $match = null;
 
-        $numReg = '[0-9]+';
+        $numReg = '-?\d+\.?\d*';
         $boolReg = '(?:true|false|null)';
         $strReg = "'[^']+'";
-        // $varReg = '\!?[a-zA-Z_][a-zA-Z0-9_.]*';
         $varReg = '\!?[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+|\g<arrReg>)*';
         $opReg = ' *(?:===|==|<=|=>|<|>|!==|!=|\+|-|\/|\*|&&|\|\|) *';
 
