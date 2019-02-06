@@ -29,7 +29,7 @@ class VuePre {
     public function setCacheDirectory(String $dir) {
         $dir = realpath($dir);
         if (!file_exists($dir) || !is_dir($dir)) {
-            throw new Exception('Component directory not found: ' . $dir);
+            throw new Exception('Cache directory not found: ' . $dir);
         }
         $this->cacheDir = $dir;
     }
