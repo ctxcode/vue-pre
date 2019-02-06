@@ -17,6 +17,7 @@ class VuePre {
     private $componentDir = null;
     private $cacheDir = null;
     private $componentAlias = [];
+    private $methods = [];
     public $disableCache = false;
 
     const PHPOPEN = '__VUEPREPHPTAG__';
@@ -41,11 +42,17 @@ class VuePre {
         $this->componentDir = $dir;
     }
 
-    public function setComponentAlias($aliasses) {
+    public function setComponentAlias(array $aliasses) {
         foreach ($aliasses as $k => $v) {
             if (is_string($k) && is_string($v)) {
                 $this->componentAlias[$k] = $v;
             }
+        }
+    }
+
+    public function setComponentMethods(array $methods) {
+        foreach ($methods as $k => $v) {
+            $this->methods[$k] = $v;
         }
     }
 
@@ -114,9 +121,16 @@ class VuePre {
     // reallyUnrealisticVariableNameForVuePre is the variable that holds the template data
     private function renderCachedTemplate($file, $reallyUnrealisticVariableNameForVuePre) {
 
+        foreach ($this->methods as $k => $v) {
+            ${$k} = $v;
+        }
+
         foreach ($reallyUnrealisticVariableNameForVuePre as $k => $v) {
             if ($k === 'this') {
                 throw new Exception('Variable "this" is not allowed');
+            }
+            if (isset(${$k})) {
+                throw new Exception('Variable "' . $k . '" is already the name of a method');
             }
             ${$k} = $v;
         }
