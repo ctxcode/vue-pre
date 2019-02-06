@@ -24,12 +24,12 @@ $vue->disableCache = true;
 $vue->setCacheDirectory(__DIR__ . '/cache');
 $vue->setComponentDirectory(__DIR__ . '/templates');
 
-while (time() < $end) {
-    $html = $vue->renderComponent('page', $data);
-    $compileTimes++;
-}
-echo 'Compiled ' . ($compileTimes / $benchSeconds) . ' times per second';
-exit;
+// while (time() < $end) {
+//     $html = $vue->renderComponent('page', $data);
+//     $compileTimes++;
+// }
+// echo 'Compiled ' . ($compileTimes / $benchSeconds) . ' times per second';
+// exit;
 
 $html = $vue->renderComponent('page', $data);
 ?>

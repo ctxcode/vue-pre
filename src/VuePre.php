@@ -18,6 +18,7 @@ class VuePre {
     private $cacheDir = null;
     private $componentAlias = [];
     private $methods = [];
+    private $renderedTemplates = [];
     public $disableCache = false;
 
     const PHPOPEN = '__VUEPREPHPTAG__';
@@ -50,6 +51,14 @@ class VuePre {
         }
     }
 
+    public function getComponentAlias($name) {
+        if (!isset($this->componentAlias[$name])) {
+            return $name;
+            // throw new Exception('Cant find component: ' . $name);
+        }
+        return $this->componentAlias[$name];
+    }
+
     public function setComponentMethods(array $methods) {
         foreach ($methods as $k => $v) {
             $this->methods[$k] = $v;
@@ -72,20 +81,36 @@ class VuePre {
         }
 
         // Cache
-        // $hash = hash_file('md5', $fullPath);
-        $hash = md5($fullPath . filesize($fullPath) . json_encode($this->componentAlias));
+        $template = file_get_contents($fullPath);
+        $hash = md5($template);
         $cacheFile = $this->cacheDir . '/' . $hash . '.php';
 
         // Create cache template
         if (!file_exists($cacheFile) || $this->disableCache) {
-            $html = file_get_contents($fullPath);
-            $html = $this->createCachedTemplate($html);
+            $html = $this->createCachedTemplate($template);
             file_put_contents($cacheFile, $html);
         }
 
         // Render cached template
         $html = $this->renderCachedTemplate($cacheFile, $data);
+
+        //
+        $this->renderedTemplates[$path] = ['template' => $template];
+
+        //
         return $html;
+    }
+
+    public function getRenderedTemplates() {
+        return $this->renderedTemplates;
+    }
+
+    public function generateTemplates() {
+        $result = '';
+        foreach ($this->renderedComponents as $name => $c) {
+            $result .= '<script type="text/template" id="vue-template-' . $name . '">' . ($c['template']) . '</script>';
+        }
+        return $result;
     }
 
     private function createCachedTemplate($html) {
@@ -183,18 +208,25 @@ class VuePre {
         if (!$this->isTextNode($node)) {
             $this->stripEventHandlers($node);
             $this->handleFor($node, $options);
+
+            $this->handleIf($node, $options);
+            if ($this->isRemovedFromTheDom($node)) {return;}
+
             $this->handleComponent($node, $options);
+            if ($this->isRemovedFromTheDom($node)) {return;}
+
+            $this->handleAttributeBinding($node);
+            if ($this->isRemovedFromTheDom($node)) {return;}
+
             $this->handleRawHtml($node);
-            if (!$this->isRemovedFromTheDom($node)) {
-                $this->handleAttributeBinding($node);
-                $this->handleIf($node, $options);
-                $subOptions = $options;
-                $subOptions['nodeDepth'] += 1;
-                $subNodes = iterator_to_array($node->childNodes);
-                foreach ($subNodes as $index => $childNode) {
-                    $subOptions['nextSibling'] = isset($subNodes[$index + 1]) ? $subNodes[$index + 1] : null;
-                    $this->handleNode($childNode, $subOptions);
-                }
+            if ($this->isRemovedFromTheDom($node)) {return;}
+
+            $subOptions = $options;
+            $subOptions['nodeDepth'] += 1;
+            $subNodes = iterator_to_array($node->childNodes);
+            foreach ($subNodes as $index => $childNode) {
+                $subOptions['nextSibling'] = isset($subNodes[$index + 1]) ? $subNodes[$index + 1] : null;
+                $this->handleNode($childNode, $subOptions);
             }
         }
     }
@@ -227,16 +259,29 @@ class VuePre {
     }
 
     private function handleAttributeBinding(DOMElement $node) {
+        $removeAttrs = [];
         foreach (iterator_to_array($node->attributes) as $attribute) {
+
             if (!preg_match('/^:[\w-]+$/', $attribute->name)) {
                 continue;
             }
+
             $name = substr($attribute->name, 1);
+            $removeAttrs[] = $attribute->name;
+
             if ($name === 'class') {
                 $phpExpr = ConvertJsExpression::convert($attribute->value);
                 $node->setAttribute($name, static::PHPOPEN . ' echo (' . $phpExpr . '); ' . static::PHPEND);
             }
-            $node->removeAttribute($attribute->name);
+
+            if ($name === 'component') {
+                $phpExpr = ConvertJsExpression::convert($attribute->value);
+                $this->replaceNodeWithComponent($node, $phpExpr, true);
+                return;
+            }
+        }
+        foreach ($removeAttrs as $attr) {
+            $node->removeAttribute($attr);
         }
     }
 
@@ -245,10 +290,22 @@ class VuePre {
             return;
         }
         $tagName = $node->tagName;
-        if (!isset($this->componentAlias[$tagName])) {
-            return;
+        $this->replaceNodeWithComponent($node, $tagName);
+    }
+
+    private function replaceNodeWithComponent(DOMNode $node, $componentName, $dynamicComponent = false) {
+
+        if ($dynamicComponent) {
+            $componentNameExpr = '$this->getComponentAlias(' . $componentName . ')';
+        } else {
+            // Static name
+            if (!isset($this->componentAlias[$componentName])) {
+                return;
+            }
+            $componentName = $this->componentAlias[$componentName];
+            $componentNameExpr = '\'' . $componentName . '\'';
         }
-        $component = $this->componentAlias[$tagName];
+
         $data = [];
         foreach (iterator_to_array($node->attributes) as $attribute) {
             if (!preg_match('/^:[\w-]+$/', $attribute->name)) {
@@ -265,9 +322,8 @@ class VuePre {
             $node->removeAttribute($attribute->name);
         }
         $dataString = implode(', ', $data);
-        $newNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' echo $this->renderComponent(\'' . $component . '\', [' . $dataString . ']); ' . static::PHPEND);
+        $newNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' echo $this->renderComponent(' . $componentNameExpr . ', [' . $dataString . ']); ' . static::PHPEND);
         $node->parentNode->replaceChild($newNode, $node);
-        // $this->removeNode($node);
     }
 
     private function handleIf(DOMNode $node, array $options) {
