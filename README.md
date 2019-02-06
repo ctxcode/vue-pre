@@ -27,7 +27,7 @@ $html = $vue->renderComponent('mypage', $data);
 .indexOf()
 .length
 
-# Values: variables, numbers, booleans, null, functions
+# Values: variables, strings, numbers, booleans, null, objects, arrays, functions
 
 # Comparisons
 myVar === 'Hello'
