@@ -70,11 +70,12 @@ class ConvertJsExpression {
             return $expr;
         }
         // .length , must be before var regex
-        if ($this->match($lengthReg, $expr, $match)) {
+        if (strpos($expr, '.length') > 0 && $this->match($lengthReg, $expr, $match)) {
             $this->match($lengthRegGroups, $expr, $match);
             $value = $this->parseValue($match[1]);
             return "\LorenzV\VuePre\ConvertJsExpression::length($value)"; // Make to return -1 instead of false
         }
+        // Variable
         if ($this->match($varReg, $expr, $match)) {
             $pre = '';
             if ($expr[0] === '!') {
@@ -108,25 +109,29 @@ class ConvertJsExpression {
             return $pre . '\LorenzV\VuePre\ConvertJsExpression::getObjectValue($' . $varName . ', [' . implode(", ", $path) . '])';
         }
         // ( ... )
-        if ($this->match($exprReg, $expr, $match)) {
-            return '(' . $this->parseValue(substr($expr, 1, -1)) . ')';
+        if ($expr[0] === '(') {
+            if ($this->match($exprReg, $expr, $match)) {
+                return '(' . $this->parseValue(substr($expr, 1, -1)) . ')';
+            }
         }
         // [ ... ]
-        if ($this->match($arrReg, $expr, $match)) {
-            $values = substr($expr, 1, -1);
-            $values = explode(',', $values);
-            $result = [];
-            foreach ($values as $value) {
-                $result[] = $this->parseValue(trim($value));
+        if ($expr[0] === '[') {
+            if ($this->match($arrReg, $expr, $match)) {
+                $values = substr($expr, 1, -1);
+                $values = explode(',', $values);
+                $result = [];
+                foreach ($values as $value) {
+                    $result[] = $this->parseValue(trim($value));
+                }
+                return '[' . implode(',', $result) . ']';
             }
-            return '[' . implode(',', $result) . ']';
         }
         // something ? this : that
         if ($this->match("($valueReg) *\? *($valueReg) *\: *($valueReg)", $expr, $match)) {
             return $this->parseValue($match[1]) . ' ? ' . $this->parseValue($match[2]) . ' : ' . $this->parseValue($match[3]);
         }
         // something === something && ... || ... + ...
-        if ($this->match("($valueReg)((?:$opReg$valueReg)+)", $expr, $match)) {
+        if (preg_match("/$opReg/", $expr) && $this->match("($valueReg)((?:$opReg$valueReg)+)", $expr, $match)) {
             $result = $this->parseValue($match[1]);
 
             $this->match("$opReg$valueReg", $match[2], $matches, ['all' => true]);
@@ -163,35 +168,38 @@ class ConvertJsExpression {
         }
 
         // { ... }
-        if ($this->match($objReg, $expr, $match)) {
-            if ($expr === $this->expression) {
-                // :class="{ active: true }"
-                $subExpr = substr($expr, 1, -1);
-                $pairs = explode(',', $subExpr);
-                $result = [];
-                foreach ($pairs as $pair) {
-                    $split = explode(':', $pair);
-                    if (count($split) < 2) {
-                        $this->fail();
+        if ($expr[0] === '{') {
+            if ($this->match($objReg, $expr, $match)) {
+                if ($expr === $this->expression) {
+                    // :class="{ active: true }"
+                    $subExpr = substr($expr, 1, -1);
+                    $pairs = explode(',', $subExpr);
+                    $result = [];
+                    foreach ($pairs as $pair) {
+                        $split = explode(':', $pair);
+                        if (count($split) < 2) {
+                            $this->fail();
+                        }
+                        $key = trim($split[0]);
+                        array_shift($split);
+                        $value = $this->parseValue(trim(implode(':', $split)));
+                        $result[] = '((' . $value . ') ? "' . $key . '" : "")';
                     }
-                    $key = trim($split[0]);
-                    array_shift($split);
-                    $value = $this->parseValue(trim(implode(':', $split)));
-                    $result[] = '((' . $value . ') ? "' . $key . '" : "")';
-                }
-                return implode(' ', $result);
-            } else {
-                // if sub expresion like {hi:'hello'} === {hi:helloMessage}
-                // These are pretty useless i think, but why not support it?
+                    return implode(' ', $result);
+                } else {
+                    // if sub expresion like {hi:'hello'} === {hi:helloMessage}
+                    // These are pretty useless i think, but why not support it?
 
-                // convert it to a string
-                // FEATURE: maybe later we can convert it to a php object
-                return "'" . addslashes($expr) . "'";
+                    // convert it to a string
+                    // FEATURE: maybe later we can convert it to a php object
+                    return "'" . addslashes($expr) . "'";
+                }
             }
+            $this->fail();
         }
 
         // .indexOf()
-        if ($this->match($indexOfReg, $expr, $match)) {
+        if (strpos($expr, '.indexOf(') > 0 && $this->match($indexOfReg, $expr, $match)) {
             $this->match($indexOfRegGroups, $expr, $match);
             $haystack = $this->parseValue($match[1]);
             $needle = $this->parseValue(substr($match[2], 1, -1));
