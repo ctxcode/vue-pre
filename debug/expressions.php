@@ -9,6 +9,7 @@ use \LorenzV\VuePre\ConvertJsExpression;
 
 $data = [
     'foo' => 6,
+    'str' => 'Test',
     'product' => [
         'name' => 'Foobar',
         'active' => true,
@@ -26,11 +27,17 @@ $data = [
 
 $expressions = [
     'foo',
-    'foo > 6',
+    'foo > 6 === true',
     'foo < 6',
     'foo == 6',
     "foo == '6'",
     'foo === 6',
+    'str + str',
+    'str + \'2\'',
+    'foo + foo',
+    'foo + 2',
+    'foo + 2 + 3 + foo',
+    'str + str + \'___\' + str',
     'product',
     'product.active',
     '!product',

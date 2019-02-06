@@ -60,11 +60,6 @@ class ConvertJsExpression {
 
         $valueReg = "(?:$numReg|$strReg|$boolReg|$lengthReg|$varReg|$arrReg|$objReg|$exprReg|$indexOfReg|$funcReg)";
 
-        $compareReg = "$valueReg$opReg$valueReg";
-        $compareRegGroups = "($valueReg)($opReg)($valueReg)";
-
-        // $valueReg = "(?:$numReg|$strReg|$boolReg|$lengthReg|$varReg|$arrReg|$objReg|$exprReg|$indexOfReg|$funcReg|$compareReg)";
-
         if ($this->match($numReg, $expr, $match)) {
             return $expr;
         }
@@ -112,18 +107,32 @@ class ConvertJsExpression {
         if ($this->match("($valueReg) *\? *($valueReg) *\: *($valueReg)", $expr, $match)) {
             return $this->parseValue($match[1]) . ' ? ' . $this->parseValue($match[2]) . ' : ' . $this->parseValue($match[3]);
         }
-        // something === something
-        if ($this->match($compareRegGroups, $expr, $match)) {
-            return $this->parseValue($match[1]) . $match[2] . $this->parseValue($match[3]);
+        // something === something && ... || ... + ...
+        if ($this->match("($valueReg)((?:$opReg$valueReg)+)", $expr, $match)) {
+            $result = $this->parseValue($match[1]);
+
+            $this->match("$opReg$valueReg", $match[2], $matches, ['all' => true]);
+
+            // Recursive
+            foreach ($matches[0] as $amatch) {
+                if ($this->match("($opReg)($valueReg)", $amatch, $subMatch)) {
+
+                    $expr2 = $this->parseValue($subMatch[2]);
+                    $op = trim($subMatch[1]);
+                    if ($op === '+') {
+                        $result = "\LorenzV\VuePre\ConvertJsExpression::plus($result, $expr2)";
+                    } else {
+                        $result = $result . ' ' . $op . ' ' . $expr2;
+                        // var_dump($expr);
+                        // var_dump($match);
+                        // exit;
+                    }
+                }
+            }
+
+            return $result;
         }
-        // something === something && true
-        if ($this->match("($valueReg)($opReg)($valueReg)($opReg)($valueReg)", $expr, $match)) {
-            return $this->parseValue($match[1]) . $match[2] . $this->parseValue($match[3]) . $match[4] . $this->parseValue($match[5]);
-        }
-        // something === something && true || something !== 5
-        if ($this->match("($valueReg)($opReg)($valueReg)($opReg)($valueReg)($opReg)($valueReg)", $expr, $match)) {
-            return $this->parseValue($match[1]) . $match[2] . $this->parseValue($match[3]) . $match[4] . $this->parseValue($match[5]) . $match[6] . $this->parseValue($match[7]);
-        }
+
         // Functions: myFunc(...)
         if ($this->match($funcReg, $expr, $match)) {
             $this->match($funcRegGroups, $expr, $match);
@@ -174,7 +183,7 @@ class ConvertJsExpression {
         $this->fail();
     }
 
-    public function match($regex, $expr, &$match, $debug = false) {
+    public function match($regx, $expr, &$match, $options = []) {
 
         // Recursive definitions
         $exprReg = '(?:(?<exprReg>\((?:[^\(\)]|(?:\g<exprReg>))*\))){0}';
@@ -182,16 +191,30 @@ class ConvertJsExpression {
         $objReg = '(?:(?<objReg>\{(?:[^\{\}]|(?:\g<objReg>))*\})){0}';
 
         $pre = "$exprReg$arrReg$objReg";
-        $regex = "/^(?J)$pre$regex$/";
+        $regex = "/^(?J)$pre$regx$/";
+        $regexAll = "/(?J)$pre$regx/";
 
-        if ($debug) {
+        if (isset($options['debug']) && $options['debug']) {
             echo '<div>' . $expr . '</div>';
             echo htmlspecialchars($regex);
             exit;
         }
 
-        $result = preg_match($regex, $expr, $match);
-        $match = array_values(array_filter($match, '\LorenzV\VuePre\ConvertJsExpression::filterRegexResults'));
+        if (isset($options['all']) && $options['all']) {
+            $result = preg_match_all($regexAll, $expr, $matches);
+            $match = [];
+            foreach ($matches as $k => $v) {
+                if (!is_int($k)) {continue;}
+                $v = array_values(array_filter($v, '\LorenzV\VuePre\ConvertJsExpression::filterRegexResults'));
+                if (count($v) > 0) {
+                    $match[] = $v;
+                }
+            }
+        } else {
+            $result = preg_match($regex, $expr, $match);
+            $match = array_values(array_filter($match, '\LorenzV\VuePre\ConvertJsExpression::filterRegexResults'));
+        }
+
         return $result;
     }
 
@@ -202,6 +225,20 @@ class ConvertJsExpression {
 
     public function fail() {
         throw new \Exception('Cannot parse expression: ' . $this->expression);
+    }
+
+    // Runtime functions
+
+    // Handle plus sign between 2 values
+    public static function plus($val1, $val2) {
+        if (is_string($val1)) {
+            return $val1 . $val2;
+        }
+        if (is_numeric($val1)) {
+            return $val1 + $val2;
+        }
+
+        return $val1 + $val2;
     }
 
     public static function getObjectValue($obj, $path) {
