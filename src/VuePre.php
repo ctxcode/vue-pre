@@ -16,9 +16,14 @@ class VuePre {
 
     private $componentDir = null;
     private $cacheDir = null;
+
     private $componentAlias = [];
     private $methods = [];
     private $renderedTemplates = [];
+    private $componentBeforeMount = [];
+    private $settingsLoaded = [];
+    private $componentTemplates = [];
+
     public $disableCache = false;
 
     const PHPOPEN = '__VUEPREPHPTAG__';
@@ -65,23 +70,20 @@ class VuePre {
         }
     }
 
-    public function renderComponent($path, $data = []) {
-
-        if (!$this->componentDir) {
-            throw new Exception('Trying to find component, but componentDirectory was not set');
+    public function setComponentBeforeMount(array $methods) {
+        foreach ($methods as $k => $v) {
+            $this->componentBeforeMount[$k] = $v;
         }
+    }
 
-        if (!$this->cacheDir) {
-            throw new Exception('Cache directory was not set');
+    public function setComponentTemplate(array $templates) {
+        foreach ($templates as $k => $template) {
+            $this->componentTemplates[$k] = $template;
         }
+    }
 
-        $fullPath = $this->componentDir . '/' . implode('/', explode('.', $path)) . '.html';
-        if (!file_exists($fullPath)) {
-            throw new Exception('Component template not found: ' . $fullPath);
-        }
+    public function renderHtml($template, $data = []) {
 
-        // Cache
-        $template = file_get_contents($fullPath);
         $hash = md5($template);
         $cacheFile = $this->cacheDir . '/' . $hash . '.php';
 
@@ -92,10 +94,60 @@ class VuePre {
         }
 
         // Render cached template
-        $html = $this->renderCachedTemplate($cacheFile, $data);
+        return $this->renderCachedTemplate($cacheFile, $data);
+    }
 
-        //
-        $this->renderedTemplates[$path] = ['template' => $template];
+    public function renderComponent($path, $data = []) {
+
+        if (!$this->componentDir) {
+            throw new Exception('Trying to find component, but componentDirectory was not set');
+        }
+
+        if (!$this->cacheDir) {
+            throw new Exception('Cache directory was not set');
+        }
+
+        $dirPath = $this->componentDir . '/' . implode('/', explode('.', $path));
+
+        // Load settings
+        if (!isset($this->settingsLoaded[$path])) {
+            $this->settingsLoaded[$path] = true;
+            $settingsPath = $dirPath . '/settings.php';
+            if (file_exists($settingsPath)) {
+                $settings = include $settingsPath;
+                if (!isset($this->componentBeforeMount[$path]) && isset($settings['beforeMount'])) {
+                    $this->componentBeforeMount[$path] = $settings['beforeMount'];
+                }
+            }
+        }
+
+        // Before mount
+        if (isset($this->componentBeforeMount[$path])) {
+            $this->componentBeforeMount[$path]($data);
+        }
+
+        // Getting template
+        if (!isset($this->componentTemplates[$path])) {
+            $templatePath = $dirPath . '.html';
+
+            if (!file_exists($templatePath)) {
+                $templatePath = $dirPath . '/template.html';
+                if (!file_exists($templatePath)) {
+                    throw new Exception('Component template not found: ' . $templatePath);
+                }
+            }
+
+            $this->componentTemplates[$path] = file_get_contents($templatePath);
+        }
+
+        // Render template
+        $template = $this->componentTemplates[$path];
+        $html = $this->renderHtml($template, $data);
+
+        // Remember
+        if (!isset($this->renderedTemplates[$path])) {
+            $this->renderedTemplates[$path] = ['name' => $path, 'template' => $template];
+        }
 
         //
         return $html;
@@ -105,12 +157,16 @@ class VuePre {
         return $this->renderedTemplates;
     }
 
-    public function generateTemplates() {
+    public function generateTemplateScriptsHtml() {
         $result = '';
         foreach ($this->renderedComponents as $name => $c) {
             $result .= '<script type="text/template" id="vue-template-' . $name . '">' . ($c['template']) . '</script>';
         }
         return $result;
+    }
+
+    public function generateVueCodeScriptHtml() {
+        die('TODO: This feature is not ready yet');
     }
 
     private function createCachedTemplate($html) {

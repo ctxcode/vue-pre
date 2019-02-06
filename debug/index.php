@@ -22,7 +22,11 @@ $compileTimes = 0;
 $vue = new \LorenzV\VuePre\VuePre();
 $vue->disableCache = true;
 $vue->setCacheDirectory(__DIR__ . '/cache');
-$vue->setComponentDirectory(__DIR__ . '/templates');
+$vue->setComponentDirectory(__DIR__ . '/components');
+
+$vue->setComponentAlias([
+    'mypartial' => 'partials.mypartial',
+]);
 
 // while (time() < $end) {
 //     $html = $vue->renderComponent('page', $data);
@@ -32,6 +36,7 @@ $vue->setComponentDirectory(__DIR__ . '/templates');
 // exit;
 
 $html = $vue->renderComponent('page', $data);
+// $html = $vue->renderHtml('<div>{{ title }}</div>', $data);
 ?>
 
 <div id="app">
