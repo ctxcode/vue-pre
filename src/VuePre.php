@@ -25,6 +25,7 @@ class VuePre {
     private $componentTemplates = [];
 
     public $disableCache = false;
+    public $disableAutoScan = false;
 
     const PHPOPEN = '__VUEPREPHPTAG__';
     const PHPEND = '__VUEPREPHPENDTAG__';
@@ -46,11 +47,24 @@ class VuePre {
             throw new Exception('Component directory not found: ' . $dir);
         }
         $this->componentDir = $dir;
-        $this->scanComponentDirectoryForAliasses();
+        if (!$this->disableAutoScan) {
+            $this->scanComponentDirectoryForComponents();
+        }
     }
 
-    private function scanComponentDirectoryForAliasses() {
-        $files = static::recursiveGlob($this->componentDir . '/*.html');
+    private function scanComponentDirectoryForComponents() {
+        $this->scanDirectoryForComponents($this->componentDir);
+    }
+
+    public function scanDirectoryForComponents($dir) {
+        if (!$this->componentDir) {
+            throw new Exception('"componentDirectory" not set');
+        }
+        $dir = realpath($dir);
+        if (strpos($dir, $this->componentDir) !== 0) {
+            throw new Exception('scanDirectoryForComponents: directory must be a sub directory from "componentDirectory"');
+        }
+        $files = static::recursiveGlob($dir . '/*.html');
         foreach ($files as $file) {
             $fn = basename($file);
             if ($fn === 'template.html') {
@@ -112,7 +126,7 @@ class VuePre {
             return '';
         }
 
-        $hash = md5($template . filemtime(__FILE__)); // If package is updated, hash should change
+        $hash = md5($template . filemtime(__FILE__) . json_encode($this->componentAlias)); // If package is updated, hash should change
         $cacheFile = $this->cacheDir . '/' . $hash . '.php';
 
         // Create cache template

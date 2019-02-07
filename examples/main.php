@@ -20,7 +20,9 @@ $data = [
 
 $vue = new \LorenzV\VuePre\VuePre();
 $vue->setCacheDirectory(__DIR__ . '/cache');
+$vue->disableAutoScan = true;
 $vue->setComponentDirectory(__DIR__ . '/templates');
+$vue->scanDirectoryForComponents(__DIR__ . '/templates/partials');
 
 $html = $vue->renderComponent('shop', $data);
 ?>
