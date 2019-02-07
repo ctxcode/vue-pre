@@ -19,13 +19,8 @@ $data = [
 ];
 
 $vue = new \LorenzV\VuePre\VuePre();
-$vue->disableCache = true;
 $vue->setCacheDirectory(__DIR__ . '/cache');
 $vue->setComponentDirectory(__DIR__ . '/templates');
-// $vue->setComponentAlias([
-//     'product-list' => 'partials.product-list',
-//     'product' => 'partials.product',
-// ]);
 
 $html = $vue->renderComponent('shop', $data);
 ?>

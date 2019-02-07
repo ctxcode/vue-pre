@@ -42,7 +42,7 @@ Having your component name as a directory allows you to keep your code together
 You can setup your folder like this:
 ```
 - components/pages/my-page/template.html
-- components/pages/my-page/template.js
+- components/pages/my-page/component.js
 - components/pages/my-page/settings.php // See "Component settings" in readme
 ```
 And it also allows you to do this:
