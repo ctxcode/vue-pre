@@ -46,6 +46,30 @@ class VuePre {
             throw new Exception('Component directory not found: ' . $dir);
         }
         $this->componentDir = $dir;
+        $this->scanComponentDirectoryForAliasses();
+    }
+
+    private function scanComponentDirectoryForAliasses() {
+        $files = static::recursiveGlob($this->componentDir . '/*.html');
+        foreach ($files as $file) {
+            $fn = basename($file);
+            if ($fn === 'template.html') {
+                $alias = dirname($file);
+            } else {
+                $alias = substr($file, 0, -strlen('.html'));
+            }
+            $name = basename($alias);
+            $alias = str_replace('/', '.', substr($alias, strlen($this->componentDir . '/')));
+            $this->componentAlias[$name] = $alias;
+        }
+    }
+
+    private static function recursiveGlob($pattern, $flags = 0) {
+        $files = glob($pattern, $flags);
+        foreach (glob(dirname($pattern) . '/*', GLOB_ONLYDIR | GLOB_NOSORT) as $dir) {
+            $files = array_merge($files, static::recursiveGlob($dir . '/' . basename($pattern), $flags));
+        }
+        return $files;
     }
 
     public function setComponentAlias(array $aliasses) {

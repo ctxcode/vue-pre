@@ -23,10 +23,6 @@ $html = $vue->renderHtml('<div>Hello {{ name }}!</div>', $data);
 
 // Method 2 - Using component directory (required if you use sub-components)
 $vue->setComponentDirectory(__DIR__ . '/components');
-$vue->setComponentAlias([
-    'product-list' => 'partials.product-list',
-    'product' => 'partials.product',
-]);
 $html = $vue->renderComponent('my-page', $data);
 ```
 
@@ -55,10 +51,12 @@ $html = $vue->renderComponent('pages.my-page', $data);
 // This returns all the templates that were used in your last render and 
 // puts them in all strings like this:
 // <script type="text/template" id="vue-template-{componentName}">...</script>
-$templates = $vue->generateTemplateScriptsHtml();
+$templateScripts = $vue->getTemplateScripts();
 // Takes all your .js files that VuePre thinks are needed based on your last render
 // And puts it in a <script type="text/javascript">...</script> element
-$vueCode = $vue->generateVueCodeScriptHtml();
+$componentScripts = $vue->getComponentScripts();
+// Or both together
+$scripts = $vue->getScripts();
 ```
 ## Component settings
 
@@ -71,16 +69,6 @@ return [
 	}
 ];
 ```
-## Component aliasses
-
-```php
-// If VuePre needs to render a sub-component like: <sidebar></sidebar>
-// But your file is located in: components/layouts/partials/sidebar.html
-// Then you need to set this
-$vue->setComponentAlias([
-	'sidebar' => 'layouts.partials.sidebar'
-]);
-```
 
 ## API
 
@@ -89,11 +77,10 @@ $vue->setComponentAlias([
 ->setComponentDirectory(String)
 ->renderHtml(String, Array)
 ->renderComponent(String, Array)
-->setComponentAlias(Array<String $shortName, String $fullName>)
 ->setComponentMethods(Array<String $componentName, AnonFunction>)
 ->setComponentBeforeMount(Array<String $componentName, AnonFunction>)
 // If you dont want a componentDirectory, use setComponentTemplate
-->setComponentTemplate(Array<String $componentName, String $template>) 
+->setComponentTemplate(Array<String $componentName, String $html>) 
 // Returns an array of all components that were used while rendering
 ->getRenderedComponents() 
 
