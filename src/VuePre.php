@@ -84,6 +84,10 @@ class VuePre {
 
     public function renderHtml($template, $data = []) {
 
+        if (empty(trim($template))) {
+            return '';
+        }
+
         $hash = md5($template . filemtime(__FILE__)); // If package is updated, hash should change
         $cacheFile = $this->cacheDir . '/' . $hash . '.php';
 
@@ -107,19 +111,8 @@ class VuePre {
             throw new Exception('Cache directory was not set');
         }
 
-        $dirPath = $this->componentDir . '/' . implode('/', explode('.', $path));
-
         // Load settings
-        if (!isset($this->settingsLoaded[$path])) {
-            $this->settingsLoaded[$path] = true;
-            $settingsPath = $dirPath . '/settings.php';
-            if (file_exists($settingsPath)) {
-                $settings = include $settingsPath;
-                if (!isset($this->componentBeforeMount[$path]) && isset($settings['beforeMount'])) {
-                    $this->componentBeforeMount[$path] = $settings['beforeMount'];
-                }
-            }
-        }
+        $this->loadSettings($path);
 
         // Before mount
         if (isset($this->componentBeforeMount[$path])) {
@@ -128,6 +121,7 @@ class VuePre {
 
         // Getting template
         if (!isset($this->componentTemplates[$path])) {
+            $dirPath = $this->componentDir . '/' . implode('/', explode('.', $path));
             $templatePath = $dirPath . '.html';
 
             if (!file_exists($templatePath)) {
@@ -153,11 +147,25 @@ class VuePre {
         return $html;
     }
 
+    public function loadSettings($path) {
+        if (!isset($this->settingsLoaded[$path])) {
+            $dirPath = $this->componentDir . '/' . implode('/', explode('.', $path));
+            $this->settingsLoaded[$path] = true;
+            $settingsPath = $dirPath . '/settings.php';
+            if (file_exists($settingsPath)) {
+                $settings = include $settingsPath;
+                if (!isset($this->componentBeforeMount[$path]) && isset($settings['beforeMount'])) {
+                    $this->componentBeforeMount[$path] = $settings['beforeMount'];
+                }
+            }
+        }
+    }
+
     public function getRenderedComponents() {
         return $this->renderedComponents;
     }
 
-    public function generateTemplateScriptsHtml() {
+    public function getTemplateScripts() {
         $result = '';
         foreach ($this->renderedComponents as $name => $c) {
             $tagName = $name;
@@ -172,8 +180,21 @@ class VuePre {
         return $result;
     }
 
-    public function generateVueCodeScriptHtml() {
-        die('TODO: This feature is not ready yet');
+    public function getComponentScripts() {
+        $result = '';
+        foreach ($this->renderedComponents as $name => $c) {
+            $dirPath = $this->componentDir . '/' . implode('/', explode('.', $name));
+            $fullPath = $dirPath . '/component.js';
+            if (file_exists($fullPath)) {
+                $code = file_get_contents($fullPath);
+                $result .= '<script type="text/javascript">' . ($code) . '</script>';
+            }
+        }
+        return $result;
+    }
+
+    public function getScripts() {
+        return $this->getTemplateScripts() . $this->getComponentScripts();
     }
 
     private function createCachedTemplate($html) {

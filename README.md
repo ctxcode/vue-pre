@@ -98,8 +98,9 @@ $vue->setComponentAlias([
 ->getRenderedComponents() 
 
 # HTML Generating
-->generateTemplateScriptsHtml()
-->generateVueCodeScriptHtml()
+->getTemplateScripts()
+->getComponentScripts()
+->getScripts() // Both template & component.js <script> elements
 ```
 
 

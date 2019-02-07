@@ -15,10 +15,6 @@ $data = [
     ],
 ];
 
-$benchSeconds = 2;
-$end = time() + $benchSeconds;
-$compileTimes = 0;
-
 $vue = new \LorenzV\VuePre\VuePre();
 $vue->disableCache = true;
 $vue->setCacheDirectory(__DIR__ . '/cache');
@@ -28,6 +24,9 @@ $vue->setComponentAlias([
     'mypartial' => 'partials.mypartial',
 ]);
 
+// $benchSeconds = 2;
+// $end = time() + $benchSeconds;
+// $compileTimes = 0;
 // while (time() < $end) {
 //     $html = $vue->renderComponent('page', $data);
 //     $compileTimes++;
