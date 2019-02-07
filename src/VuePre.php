@@ -20,7 +20,7 @@ class VuePre {
     private $componentAlias = [];
     private $methods = [];
     private $renderedComponents = [];
-    private $componentBeforeMount = [];
+    private $componentBeforeRender = [];
     private $settingsLoaded = [];
     private $componentTemplates = [];
 
@@ -94,9 +94,9 @@ class VuePre {
         }
     }
 
-    public function setComponentBeforeMount(array $methods) {
+    public function setComponentBeforeRender(array $methods) {
         foreach ($methods as $k => $v) {
-            $this->componentBeforeMount[$k] = $v;
+            $this->componentBeforeRender[$k] = $v;
         }
     }
 
@@ -139,8 +139,8 @@ class VuePre {
         $this->loadSettings($path);
 
         // Before mount
-        if (isset($this->componentBeforeMount[$path])) {
-            $this->componentBeforeMount[$path]($data);
+        if (isset($this->componentBeforeRender[$path])) {
+            $this->componentBeforeRender[$path]($data);
         }
 
         // Getting template
@@ -178,8 +178,8 @@ class VuePre {
             $settingsPath = $dirPath . '/settings.php';
             if (file_exists($settingsPath)) {
                 $settings = include $settingsPath;
-                if (!isset($this->componentBeforeMount[$path]) && isset($settings['beforeMount'])) {
-                    $this->componentBeforeMount[$path] = $settings['beforeMount'];
+                if (!isset($this->componentBeforeRender[$path]) && isset($settings['beforeRender'])) {
+                    $this->componentBeforeRender[$path] = $settings['beforeRender'];
                 }
             }
         }

@@ -63,7 +63,7 @@ $scripts = $vue->getScripts();
 ```php
 <?php
 return [
-	'beforeMount' => function(&$data){
+	'beforeRender' => function(&$data){
 		// Set some defaults
 		$data['openPopup'] = false;
 	}
@@ -78,7 +78,7 @@ return [
 ->renderHtml(String, Array)
 ->renderComponent(String, Array)
 ->setComponentMethods(Array<String $componentName, AnonFunction>)
-->setComponentBeforeMount(Array<String $componentName, AnonFunction>)
+->setComponentBeforeRender(Array<String $componentName, AnonFunction>)
 // If you dont want a componentDirectory, use setComponentTemplate
 ->setComponentTemplate(Array<String $componentName, String $html>) 
 // Returns an array of all components that were used while rendering
