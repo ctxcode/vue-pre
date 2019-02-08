@@ -245,8 +245,8 @@ class VuePre {
     }
 
     public function getTemplateScript($alias) {
-        if (isset($this->componentTemplates[$path])) {
-            return $this->componentTemplates[$path];
+        if (isset($this->componentTemplates[$alias])) {
+            return $this->componentTemplates[$alias];
         }
         $componentName = $this->componentNameViaAlias($alias, $alias);
         $template = $this->getComponentTemplate($alias);
