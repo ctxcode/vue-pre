@@ -157,23 +157,8 @@ class VuePre {
             $this->componentBeforeRender[$path]($data);
         }
 
-        // Getting template
-        if (!isset($this->componentTemplates[$path])) {
-            $dirPath = $this->componentDir . '/' . implode('/', explode('.', $path));
-            $templatePath = $dirPath . '.html';
-
-            if (!file_exists($templatePath)) {
-                $templatePath = $dirPath . '/template.html';
-                if (!file_exists($templatePath)) {
-                    throw new Exception('Component template not found: ' . $templatePath);
-                }
-            }
-
-            $this->componentTemplates[$path] = file_get_contents($templatePath);
-        }
-
         // Render template
-        $template = $this->componentTemplates[$path];
+        $template = $this->getComponentTemplate($path);
         $html = $this->renderHtml($template, $data);
 
         // Remember
@@ -183,6 +168,28 @@ class VuePre {
 
         //
         return $html;
+    }
+
+    public function getComponentTemplate($alias) {
+        $dirPath = $this->componentDir . '/' . implode('/', explode('.', $alias));
+        $templatePath = $dirPath . '.html';
+
+        if (!file_exists($templatePath)) {
+            $templatePath = $dirPath . '/template.html';
+            if (!file_exists($templatePath)) {
+                throw new Exception('Component template not found: ' . $templatePath);
+            }
+        }
+        return file_get_contents($templatePath);
+    }
+
+    public function getComponentJs($alias) {
+        $dirPath = $this->componentDir . '/' . implode('/', explode('.', $alias));
+        $templatePath = $dirPath . '/component.js';
+        if (!file_exists($templatePath)) {
+            throw new Exception('component.js not found: ' . $templatePath);
+        }
+        return file_get_contents($templatePath);
     }
 
     public function loadSettings($path) {
@@ -215,28 +222,19 @@ class VuePre {
         return $this->renderedComponents;
     }
 
-    public function getTemplateScripts($onlyThis = null) {
+    public function getTemplateScripts() {
         $result = '';
-        foreach ($this->renderedComponents as $name => $c) {
-            $componentName = $this->componentNameViaAlias($name, $name);
-            if ($onlyThis && $componentName !== $onlyThis) {
-                continue;
-            }
+        foreach ($this->renderedComponents as $alias => $c) {
+            $componentName = $this->componentNameViaAlias($alias, $alias);
             $result .= '<script type="text/template" id="vue-template-' . $componentName . '">' . ($c['template']) . '</script>';
         }
         return $result;
     }
 
-    public function getComponentScripts($onlyThis = null) {
+    public function getComponentScripts() {
         $result = '';
-        foreach ($this->renderedComponents as $name => $c) {
-
-            $componentName = $this->componentNameViaAlias($name, $name);
-            if ($onlyThis && $componentName !== $onlyThis) {
-                continue;
-            }
-
-            $dirPath = $this->componentDir . '/' . implode('/', explode('.', $name));
+        foreach ($this->renderedComponents as $alias => $c) {
+            $dirPath = $this->componentDir . '/' . implode('/', explode('.', $alias));
             $fullPath = $dirPath . '/component.js';
             if (file_exists($fullPath)) {
                 $code = file_get_contents($fullPath);
@@ -246,8 +244,27 @@ class VuePre {
         return $result;
     }
 
+    public function getTemplateScript($alias) {
+        if (isset($this->componentTemplates[$path])) {
+            return $this->componentTemplates[$path];
+        }
+        $componentName = $this->componentNameViaAlias($alias, $alias);
+        $template = $this->getComponentTemplate($alias);
+        $this->componentTemplates[$alias] = $template;
+        return '<script type="text/template" id="vue-template-' . $componentName . '">' . ($alias) . '</script>';
+    }
+
+    public function getComponentScript($alias) {
+        $componentName = $this->componentNameViaAlias($alias, $alias);
+        $code = $this->getComponentJs($alias);
+        return '<script type="text/javascript">' . ($code) . '</script>';
+    }
+
     public function getScripts($name = null) {
-        return $this->getTemplateScripts($name) . $this->getComponentScripts($name);
+        if ($name) {
+            return $this->getTemplateScript($name) . $this->getComponentScript($name);
+        }
+        return $this->getTemplateScripts() . $this->getComponentScripts();
     }
 
     private function createCachedTemplate($html) {
