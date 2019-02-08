@@ -133,6 +133,7 @@ Currently i don't have many examples. More will be added later. Feel free to mak
 
 Note: Feel free to make an issue for these, so i can make them a prority. The only reason these are not implemented yet is because of low priority.
 
+- Handle `<template>` elements
 - Attributes `v-model` `:value` `:selected` `:checked` `:style`
 - Binding non-binding attributes to components
 - Custom error handlers
