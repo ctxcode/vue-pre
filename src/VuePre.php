@@ -199,28 +199,43 @@ class VuePre {
         }
     }
 
+    public function componentNameViaAlias($alias, $default = null) {
+        foreach ($this->componentAlias as $tag => $longName) {
+            if ($alias === $longName) {
+                return $tag;
+            }
+        }
+        if ($default) {
+            return $default;
+        }
+        throw new \Exception('Cannot find alias for "' . $alias . '"');
+    }
+
     public function getRenderedComponents() {
         return $this->renderedComponents;
     }
 
-    public function getTemplateScripts() {
+    public function getTemplateScripts($onlyThis = null) {
         $result = '';
         foreach ($this->renderedComponents as $name => $c) {
-            $tagName = $name;
-            foreach ($this->componentAlias as $tag => $longName) {
-                if ($name === $longName) {
-                    $tagName = $tag;
-                    break;
-                }
+            $componentName = $this->componentNameViaAlias($name, $name);
+            if ($onlyThis && $componentName !== $onlyThis) {
+                continue;
             }
-            $result .= '<script type="text/template" id="vue-template-' . $tagName . '">' . ($c['template']) . '</script>';
+            $result .= '<script type="text/template" id="vue-template-' . $componentName . '">' . ($c['template']) . '</script>';
         }
         return $result;
     }
 
-    public function getComponentScripts() {
+    public function getComponentScripts($onlyThis = null) {
         $result = '';
         foreach ($this->renderedComponents as $name => $c) {
+
+            $componentName = $this->componentNameViaAlias($name, $name);
+            if ($onlyThis && $componentName !== $onlyThis) {
+                continue;
+            }
+
             $dirPath = $this->componentDir . '/' . implode('/', explode('.', $name));
             $fullPath = $dirPath . '/component.js';
             if (file_exists($fullPath)) {
@@ -231,8 +246,8 @@ class VuePre {
         return $result;
     }
 
-    public function getScripts() {
-        return $this->getTemplateScripts() . $this->getComponentScripts();
+    public function getScripts($name = null) {
+        return $this->getTemplateScripts($name) . $this->getComponentScripts($name);
     }
 
     private function createCachedTemplate($html) {
