@@ -139,6 +139,7 @@ Note: Feel free to make an issue for these, so i can make them a prority. The on
 - Options: 
 	- `ignoreVariableNotFound` `ignoreMethodNotFound`
 	- `ignoreVariableNames` `ignoreMethodNames`
+	- `ignoreSubComponents` `ignoreSubComponentNames`
 - Computed values
 - Look into `<slot></slot>` tags
 
