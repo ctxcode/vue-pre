@@ -33,6 +33,10 @@ class VuePre {
     public function __construct() {
     }
 
+    /////////////////////////
+    // Settings
+    /////////////////////////
+
     public function setCacheDirectory(String $dir) {
         $dir = realpath($dir);
         if (!file_exists($dir) || !is_dir($dir)) {
@@ -52,39 +56,17 @@ class VuePre {
         }
     }
 
-    private function scanComponentDirectoryForComponents() {
-        $this->scanDirectoryForComponents($this->componentDir);
+    /////////////////////////
+    // Getters / Setters
+    /////////////////////////
+
+    public function getRenderedComponents() {
+        return $this->renderedComponents;
     }
 
-    public function scanDirectoryForComponents($dir) {
-        if (!$this->componentDir) {
-            throw new Exception('"componentDirectory" not set');
-        }
-        $dir = realpath($dir);
-        if (strpos($dir, $this->componentDir) !== 0) {
-            throw new Exception('scanDirectoryForComponents: directory must be a sub directory from "componentDirectory"');
-        }
-        $files = static::recursiveGlob($dir . '/*.html');
-        foreach ($files as $file) {
-            $fn = basename($file);
-            if ($fn === 'template.html') {
-                $alias = dirname($file);
-            } else {
-                $alias = substr($file, 0, -strlen('.html'));
-            }
-            $name = basename($alias);
-            $alias = str_replace('/', '.', substr($alias, strlen($this->componentDir . '/')));
-            $this->componentAlias[$name] = $alias;
-        }
-    }
-
-    private static function recursiveGlob($pattern, $flags = 0) {
-        $files = glob($pattern, $flags);
-        foreach (glob(dirname($pattern) . '/*', GLOB_ONLYDIR | GLOB_NOSORT) as $dir) {
-            $files = array_merge($files, static::recursiveGlob($dir . '/' . basename($pattern), $flags));
-        }
-        return $files;
-    }
+    /////////////////////////
+    // Component Settings
+    /////////////////////////
 
     public function setComponentAlias(array $aliasses) {
         foreach ($aliasses as $k => $v) {
@@ -94,23 +76,22 @@ class VuePre {
         }
     }
 
-    public function getComponentAlias($name) {
-        if (!isset($this->componentAlias[$name])) {
-            return $name;
-            // throw new Exception('Cant find component: ' . $name);
+    public function getComponentAlias($tagName) {
+        if (!isset($this->componentAlias[$tagName])) {
+            return $tagName;
         }
-        return $this->componentAlias[$name];
+        return $this->componentAlias[$tagName];
     }
 
     public function setComponentMethods(array $methods) {
-        foreach ($methods as $k => $v) {
-            $this->methods[$k] = $v;
+        foreach ($methods as $alias => $method) {
+            $this->methods[$alias] = $method;
         }
     }
 
     public function setComponentBeforeRender(array $methods) {
-        foreach ($methods as $k => $v) {
-            $this->componentBeforeRender[$k] = $v;
+        foreach ($methods as $alias => $func) {
+            $this->componentBeforeRender[$alias] = $func;
         }
     }
 
@@ -120,77 +101,9 @@ class VuePre {
         }
     }
 
-    public function renderHtml($template, $data = []) {
-
-        if (empty(trim($template))) {
-            return '';
-        }
-
-        $hash = md5($template . filemtime(__FILE__) . json_encode($this->componentAlias)); // If package is updated, hash should change
-        $cacheFile = $this->cacheDir . '/' . $hash . '.php';
-
-        // Create cache template
-        if (!file_exists($cacheFile) || $this->disableCache) {
-            $html = $this->createCachedTemplate($template);
-            file_put_contents($cacheFile, $html);
-        }
-
-        // Render cached template
-        return $this->renderCachedTemplate($cacheFile, $data);
-    }
-
-    public function renderComponent($path, $data = []) {
-
-        if (!$this->componentDir) {
-            throw new Exception('Trying to find component, but componentDirectory was not set');
-        }
-
-        if (!$this->cacheDir) {
-            throw new Exception('Cache directory was not set');
-        }
-
-        // Load settings
-        $this->loadSettings($path);
-
-        // Before mount
-        if (isset($this->componentBeforeRender[$path])) {
-            $this->componentBeforeRender[$path]($data);
-        }
-
-        // Render template
-        $template = $this->getComponentTemplate($path);
-        $html = $this->renderHtml($template, $data);
-
-        // Remember
-        if (!isset($this->renderedComponents[$path])) {
-            $this->renderedComponents[$path] = ['name' => $path, 'template' => $template];
-        }
-
-        //
-        return $html;
-    }
-
-    public function getComponentTemplate($alias) {
-        $dirPath = $this->componentDir . '/' . implode('/', explode('.', $alias));
-        $templatePath = $dirPath . '.html';
-
-        if (!file_exists($templatePath)) {
-            $templatePath = $dirPath . '/template.html';
-            if (!file_exists($templatePath)) {
-                throw new Exception('Component template not found: ' . $templatePath);
-            }
-        }
-        return file_get_contents($templatePath);
-    }
-
-    public function getComponentJs($alias) {
-        $dirPath = $this->componentDir . '/' . implode('/', explode('.', $alias));
-        $templatePath = $dirPath . '/component.js';
-        if (!file_exists($templatePath)) {
-            throw new Exception('component.js not found: ' . $templatePath);
-        }
-        return file_get_contents($templatePath);
-    }
+    /////////////////////////
+    // Helper functions
+    /////////////////////////
 
     public function loadSettings($path) {
         if (!isset($this->settingsLoaded[$path])) {
@@ -218,9 +131,31 @@ class VuePre {
         throw new \Exception('Cannot find alias for "' . $alias . '"');
     }
 
-    public function getRenderedComponents() {
-        return $this->renderedComponents;
+    public function getComponentTemplate($alias) {
+        $dirPath = $this->componentDir . '/' . implode('/', explode('.', $alias));
+        $templatePath = $dirPath . '.html';
+
+        if (!file_exists($templatePath)) {
+            $templatePath = $dirPath . '/template.html';
+            if (!file_exists($templatePath)) {
+                throw new Exception('Component template not found: ' . $templatePath);
+            }
+        }
+        return file_get_contents($templatePath);
     }
+
+    public function getComponentJs($alias) {
+        $dirPath = $this->componentDir . '/' . implode('/', explode('.', $alias));
+        $templatePath = $dirPath . '/component.js';
+        if (!file_exists($templatePath)) {
+            throw new Exception('component.js not found: ' . $templatePath);
+        }
+        return file_get_contents($templatePath);
+    }
+
+    /////////////////////////
+    // <script> functions
+    /////////////////////////
 
     public function getTemplateScripts() {
         $result = '';
@@ -266,6 +201,48 @@ class VuePre {
         }
         return $this->getTemplateScripts() . $this->getComponentScripts();
     }
+
+    /////////////////////////
+    // Scan for aliasses
+    /////////////////////////
+
+    private function scanComponentDirectoryForComponents() {
+        $this->scanDirectoryForComponents($this->componentDir);
+    }
+
+    public function scanDirectoryForComponents($dir) {
+        if (!$this->componentDir) {
+            throw new Exception('"componentDirectory" not set');
+        }
+        $dir = realpath($dir);
+        if (strpos($dir, $this->componentDir) !== 0) {
+            throw new Exception('scanDirectoryForComponents: directory must be a sub directory from "componentDirectory"');
+        }
+        $files = static::recursiveGlob($dir . '/*.html');
+        foreach ($files as $file) {
+            $fn = basename($file);
+            if ($fn === 'template.html') {
+                $alias = dirname($file);
+            } else {
+                $alias = substr($file, 0, -strlen('.html'));
+            }
+            $name = basename($alias);
+            $alias = str_replace('/', '.', substr($alias, strlen($this->componentDir . '/')));
+            $this->componentAlias[$name] = $alias;
+        }
+    }
+
+    private static function recursiveGlob($pattern, $flags = 0) {
+        $files = glob($pattern, $flags);
+        foreach (glob(dirname($pattern) . '/*', GLOB_ONLYDIR | GLOB_NOSORT) as $dir) {
+            $files = array_merge($files, static::recursiveGlob($dir . '/' . basename($pattern), $flags));
+        }
+        return $files;
+    }
+
+    /////////////////////////
+    // Cache
+    /////////////////////////
 
     private function createCachedTemplate($html) {
         $dom = $this->parseHtml($html);
@@ -319,6 +296,60 @@ class VuePre {
         $html = ob_get_contents();
         ob_end_clean();
 
+        return $html;
+    }
+
+    /////////////////////////
+    // Rendering
+    /////////////////////////
+
+    public function renderHtml($template, $data = []) {
+
+        if (empty(trim($template))) {
+            return '';
+        }
+
+        $hash = md5($template . filemtime(__FILE__) . json_encode($this->componentAlias)); // If package is updated, hash should change
+        $cacheFile = $this->cacheDir . '/' . $hash . '.php';
+
+        // Create cache template
+        if (!file_exists($cacheFile) || $this->disableCache) {
+            $html = $this->createCachedTemplate($template);
+            file_put_contents($cacheFile, $html);
+        }
+
+        // Render cached template
+        return $this->renderCachedTemplate($cacheFile, $data);
+    }
+
+    public function renderComponent($path, $data = []) {
+
+        if (!$this->componentDir) {
+            throw new Exception('Trying to find component, but componentDirectory was not set');
+        }
+
+        if (!$this->cacheDir) {
+            throw new Exception('Cache directory was not set');
+        }
+
+        // Load settings
+        $this->loadSettings($path);
+
+        // Before mount
+        if (isset($this->componentBeforeRender[$path])) {
+            $this->componentBeforeRender[$path]($data);
+        }
+
+        // Render template
+        $template = $this->getComponentTemplate($path);
+        $html = $this->renderHtml($template, $data);
+
+        // Remember
+        if (!isset($this->renderedComponents[$path])) {
+            $this->renderedComponents[$path] = ['name' => $path, 'template' => $template];
+        }
+
+        //
         return $html;
     }
 
