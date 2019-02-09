@@ -29,65 +29,106 @@ $html = $vue->renderComponent('my-page', $data);
 ## Component directory
 
 ```php
-// Lets say you configured your instance like this
+// If you set your directory like this
 $vue->setComponentDirectory(__DIR__ . '/components');
+// It's going to look for any .html file and register the filename as a component
+// So, if you have components/pages/homepage.html
+// It will set that html as the template for <homepage>
 
-// Then this
-$html = $vue->renderComponent('pages.my-page', $data);
-// Will look for: .../components/pages/my-page.html
-// If that does not exist, it will look for: .../components/pages/my-page/template.html
-
+// You can also use directories as your component name if you put a template.html in it
+// e.g. components/pages/homepage/template.html
 ```
 Having your component name as a directory allows you to keep your code together
 You can setup your folder like this:
 ```
 - components/pages/my-page/template.html
-- components/pages/my-page/component.js
-- components/pages/my-page/settings.php // See "Component settings" in readme
+- components/pages/my-page/component.js // Optional
+- components/pages/my-page/component.php // Optional, see "Component settings" in readme
 ```
-And it also allows you to do this:
-```php
-$html = $vue->renderComponent('pages.my-page', $data);
-// This returns all the templates that were used in your last render and 
-// puts them in all strings like this:
-// <script type="text/template" id="vue-template-{componentName}">...</script>
-$templateScripts = $vue->getTemplateScripts();
-// Takes all your .js files that VuePre thinks are needed based on your last render
-// And puts it in a <script type="text/javascript">...</script> element
-$componentScripts = $vue->getComponentScripts();
-// Or both together
-$scripts = $vue->getScripts();
-```
+
 ## Component settings
+
+If you have a Vue component like this
+
+```javascript
+Vue.component('product', {
+	props: ['product']
+	data: {
+		name: this.product.name,
+		price: this.product.price,
+		showPrice: false,
+	},
+	methods: {
+		...
+	}
+});
+```
+And you use name & price in your template, then you need to do the same in PHP.
 
 ```php
 <?php
+// components/shop/product/component.php
 return [
 	'beforeRender' => function(&$data){
-		// Set some defaults
-		$data['openPopup'] = false;
+		$data['name'] = $data['product']['name'];
+		$data['price'] = $data['product']['price'];
+		$data['showPrice'] = false;
 	}
 ];
+```
+You could of course base your template on the $props data. But this results in ugly template code.
+
+## Generating \<scripts>
+
+You can generate scripts for your component templates and your component.js files.
+
+```php
+// Based on your last render
+$vue->getScripts(); // templates (+ component.js files if available)
+$vue->getTemplateScripts(); // only templates
+$vue->getComponentScripts(); // ony component.js files
+
+// By component name
+$vue->getTemplateScript('my-page');
+$vue->getComponentScript('my-page');
+
+// Without <script>
+$vue->getTemplate('my-page');
+$vue->getComponentJs('my-page');
+
+// Usefull
+$vue->getRenderedComponentNames();
 ```
 
 ## API
 
 ```php
-->setCacheDirectory(String)
-->setComponentDirectory(String)
-->renderHtml(String, Array)
-->renderComponent(String, Array)
+->setCacheDirectory(String $path)
+->setComponentDirectory(String $path)
+->renderHtml(String $html, Array $data)
+->renderComponent(String $componentName, Array $data)
+
+// Set component settings manually
 ->setComponentMethods(Array<String $componentName, AnonFunction>)
 ->setComponentBeforeRender(Array<String $componentName, AnonFunction>)
-// If you dont want a componentDirectory, use setComponentTemplate
 ->setComponentTemplate(Array<String $componentName, String $html>) 
-// Returns an array of all components that were used while rendering
-->getRenderedComponents() 
+->setComponentAlias(Array<String $componentName, String $alias>)
 
-# HTML Generating
-->getTemplateScripts()
-->getComponentScripts()
-->getScripts() // Both template & component.js <script> elements
+// Get component info
+->getComponentAlias(String $componentName, $default = null)
+->getComponentNameViaAlias(String $alias, $default = null)
+->getTemplate(String $componentName, $default = null);
+->getComponentJs(String $componentName, $default = null);
+
+// Generating scripts
+->getScripts();
+->getTemplateScripts();
+->getComponentScripts();
+->getTemplateScript(String $componentName, $default = null);
+->getComponentScript(String $componentName, $default = null);
+
+// Others
+->getRenderedComponentNames();
 ```
 
 
@@ -147,4 +188,3 @@ Note: Feel free to make an issue for these, so i can make them a prority. The on
 ## Contributors
 
 The DOM iterator code was partially copied from [wmde/php-vuejs-templating](https://github.com/wmde/php-vuejs-templating)
-
