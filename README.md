@@ -63,7 +63,7 @@ Vue.component('product', {
 	}
 });
 ```
-And you use name & price in your template, then you need to do the same in PHP.
+And you use name, price and showPrice in your template, then you need to do the same in PHP.
 
 ```php
 <?php
