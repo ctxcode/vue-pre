@@ -86,7 +86,7 @@ You can generate scripts for your component templates and your component.js file
 // Based on your last render
 $vue->getScripts(); // templates (+ component.js files if available)
 $vue->getTemplateScripts(); // only templates
-$vue->getComponentScripts(); // ony component.js files
+$vue->getComponentScripts(); // only component.js files
 
 // By component name
 $vue->getTemplateScript('my-page');
