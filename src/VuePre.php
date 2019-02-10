@@ -27,6 +27,9 @@ class VuePre {
     public $disableCache = false;
     public $disableAutoScan = false;
 
+    private $errorLine = null;
+    private $errorExpression = null;
+
     const PHPOPEN = '__VUEPREPHPTAG__';
     const PHPEND = '__VUEPREPHPENDTAG__';
 
@@ -303,12 +306,20 @@ class VuePre {
             ${$k} = $v;
         }
 
+        set_error_handler(array($this, 'handleError'));
         ob_start();
         include $file;
         $html = ob_get_contents();
         ob_end_clean();
+        restore_error_handler();
+
+        // $esdfdsf;
 
         return $html;
+    }
+
+    public function handleError($errno, $errstr, $errFile, $errLine) {
+        die('Error parsing "' . htmlspecialchars($this->errorExpression) . '" at line ' . ($this->errorLine) . ': ' . "\n" . $errstr);
     }
 
     /////////////////////////
@@ -449,7 +460,8 @@ class VuePre {
             preg_match_all($regex, $text, $matches);
             foreach ($matches['expression'] as $index => $expression) {
                 $phpExpr = ConvertJsExpression::convert($expression);
-                $text = str_replace($matches[0][$index], static::PHPOPEN . ' echo htmlspecialchars(' . $phpExpr . '); ' . static::PHPEND, $text);
+                $errorCode = '$this->setErrorHint(' . ($node->getLineNo()) . ', "' . addslashes($expression) . '");';
+                $text = str_replace($matches[0][$index], static::PHPOPEN . ' ' . $errorCode . ' echo htmlspecialchars(' . $phpExpr . '); ' . static::PHPEND, $text);
             }
             if ($text !== $node->nodeValue) {
                 $newNode = $node->ownerDocument->createTextNode($text);
@@ -471,7 +483,8 @@ class VuePre {
 
             if ($name === 'class') {
                 $phpExpr = ConvertJsExpression::convert($attribute->value);
-                $node->setAttribute($name, static::PHPOPEN . ' echo (' . $phpExpr . '); ' . static::PHPEND);
+                $errorCode = '$this->setErrorHint(' . ($node->getLineNo()) . ', "' . addslashes($attribute->value) . '");';
+                $node->setAttribute($name, static::PHPOPEN . ' ' . $errorCode . ' echo (' . $phpExpr . '); ' . static::PHPEND);
             }
 
             if ($node->tagName === 'component' && $name === 'is') {
@@ -504,6 +517,8 @@ class VuePre {
             $componentNameExpr = '\'' . $componentName . '\'';
         }
 
+        $errorCode = '$this->setErrorHint(' . ($node->getLineNo()) . ', "' . addslashes($node->ownerDocument->saveHTML($node)) . '");';
+
         $data = [];
         foreach (iterator_to_array($node->attributes) as $attribute) {
             if (!preg_match('/^:[\w-]+$/', $attribute->name)) {
@@ -520,7 +535,7 @@ class VuePre {
             $node->removeAttribute($attribute->name);
         }
         $dataString = implode(', ', $data);
-        $newNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' echo $this->renderComponent(' . $componentNameExpr . ', [' . $dataString . ']); ' . static::PHPEND);
+        $newNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' ' . $errorCode . ' echo $this->renderComponent(' . $componentNameExpr . ', [' . $dataString . ']); ' . static::PHPEND);
         $node->parentNode->replaceChild($newNode, $node);
     }
 
@@ -532,8 +547,9 @@ class VuePre {
             $conditionString = $node->getAttribute('v-if');
             $node->removeAttribute('v-if');
             $phpExpr = ConvertJsExpression::convert($conditionString);
+            $errorCode = '$this->setErrorHint(' . ($node->getLineNo()) . ', "' . addslashes($conditionString) . '");';
             // Add php code
-            $beforeNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' if($_HANDLEIFRESULT' . ($options["nodeDepth"]) . ' = ' . $phpExpr . ') { ' . static::PHPEND);
+            $beforeNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' ' . $errorCode . ' if($_HANDLEIFRESULT' . ($options["nodeDepth"]) . ' = ' . $phpExpr . ') { ' . static::PHPEND);
             $afterNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' } ' . static::PHPEND);
             $node->parentNode->insertBefore($beforeNode, $node);
             if ($options['nextSibling']) {$node->parentNode->insertBefore($afterNode, $options['nextSibling']);} else { $node->parentNode->appendChild($afterNode);}
@@ -541,8 +557,9 @@ class VuePre {
             $conditionString = $node->getAttribute('v-else-if');
             $node->removeAttribute('v-else-if');
             $phpExpr = ConvertJsExpression::convert($conditionString);
+            $errorCode = '$this->setErrorHint(' . ($node->getLineNo()) . ', "' . addslashes($conditionString) . '");';
             // Add php code
-            $beforeNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' if(!$_HANDLEIFRESULT' . ($options["nodeDepth"]) . ' && $_HANDLEIFRESULT' . ($options["nodeDepth"]) . ' = ' . $phpExpr . ') { ' . static::PHPEND);
+            $beforeNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' ' . $errorCode . ' if(!$_HANDLEIFRESULT' . ($options["nodeDepth"]) . ' && $_HANDLEIFRESULT' . ($options["nodeDepth"]) . ' = ' . $phpExpr . ') { ' . static::PHPEND);
             $afterNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' } ' . static::PHPEND);
             $node->parentNode->insertBefore($beforeNode, $node);
             if ($options['nextSibling']) {$node->parentNode->insertBefore($afterNode, $options['nextSibling']);} else { $node->parentNode->appendChild($afterNode);}
@@ -606,6 +623,11 @@ class VuePre {
     }
     private function isRemovedFromTheDom(DOMNode $node) {
         return $node->parentNode === null;
+    }
+
+    private function setErrorHint($line, $expression) {
+        $this->errorLine = $line;
+        $this->errorExpression = $expression;
     }
 
 }
