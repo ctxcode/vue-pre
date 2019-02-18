@@ -581,6 +581,13 @@ class VuePre {
             list($itemName, $listName) = explode(' in ', $node->getAttribute('v-for'));
             $node->removeAttribute('v-for');
 
+            // Support for item,index in myArray
+            $itemName = trim($itemName, '() ');
+            $itemNameEx = explode(',', $itemName);
+            if (count($itemNameEx) === 2) {
+                $itemName = trim($itemNameEx[1]) . ' => $' . trim($itemNameEx[0]);
+            }
+
             $phpExpr = ConvertJsExpression::convert($listName);
 
             $beforeNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' foreach((' . $phpExpr . ') as $' . $itemName . ') { ' . static::PHPEND);
