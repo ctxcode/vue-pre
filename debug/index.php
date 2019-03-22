@@ -20,10 +20,6 @@ $vue->disableCache = true;
 $vue->setCacheDirectory(__DIR__ . '/cache');
 $vue->setComponentDirectory(__DIR__ . '/components');
 
-$vue->setComponentAlias([
-    'mypartial' => 'partials.mypartial',
-]);
-
 // $benchSeconds = 2;
 // $end = time() + $benchSeconds;
 // $compileTimes = 0;
@@ -35,10 +31,27 @@ $vue->setComponentAlias([
 // exit;
 
 $html = $vue->renderComponent('page', $data);
+$templates = $vue->getTemplateScripts();
+$js = $vue->getComponentScripts();
 // $html = $vue->renderHtml('<div>{{ title }}</div>', $data);
 ?>
+
+<script src="https://cdn.jsdelivr.net/npm/vue"></script>
 
 <div id="app">
     <?php echo $html; ?>
 </div>
 
+<?php echo $templates; ?>
+
+<?php echo $js; ?>
+
+<script>
+    new Vue({
+        el: '#app',
+        data: function(){
+            return { pageData: <?php echo json_encode($data); ?> };
+        },
+        template: '<page :page-data="pageData"></page>',
+    });
+</script>

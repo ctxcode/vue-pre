@@ -18,6 +18,7 @@ class VuePre {
     private $cacheDir = null;
 
     private $componentAlias = [];
+    private $components = [];
     private $methods = [];
     private $renderedComponentNames = [];
     private $componentBeforeRender = [];
@@ -89,132 +90,107 @@ class VuePre {
         throw new \Exception('Cannot find alias for "' . $componentName . '"');
     }
 
-    public function getComponentNameViaAlias($alias, $default = null) {
-        foreach ($this->componentAlias as $tag => $longName) {
-            if ($alias === $longName) {
-                return $tag;
-            }
-        }
-        if ($default) {
-            return $default;
-        }
-        throw new \Exception('Cannot find alias for "' . $alias . '"');
-    }
-
-    /////////////////////////
-    // Component Settings
-    /////////////////////////
-
-    public function setComponentMethods(array $methods) {
-        foreach ($methods as $componentName => $method) {
-            $this->methods[$componentName] = $method;
-        }
-    }
-
-    public function setComponentBeforeRender(array $methods) {
-        foreach ($methods as $componentName => $func) {
-            $this->componentBeforeRender[$componentName] = $func;
-        }
-    }
-
-    public function setComponentTemplate(array $templates) {
-        foreach ($templates as $k => $template) {
-            $this->componentTemplates[$k] = $template;
-        }
-    }
-
     /////////////////////////
     // Helper functions
     /////////////////////////
 
-    public function loadSettings($componentName) {
-        if (!isset($this->settingsLoaded[$componentName])) {
+    public function loadComponent($componentName) {
+        if (!isset($this->components[$componentName])) {
+            $component = [
+                'settings' => null,
+                'template' => null,
+                'js' => null,
+            ];
+
             $alias = $this->getComponentAlias($componentName);
             $dirPath = $this->componentDir . '/' . implode('/', explode('.', $alias));
-            $this->settingsLoaded[$componentName] = true;
-            $settingsPath = $dirPath . '/component.php';
-            if (file_exists($settingsPath)) {
-                $settings = include $settingsPath;
-                if (!isset($this->componentBeforeRender[$componentName]) && isset($settings['beforeRender'])) {
-                    $this->componentBeforeRender[$componentName] = $settings['beforeRender'];
-                }
+            $path = $dirPath . '.php';
+
+            if (!file_exists($path)) {
+                throw new Exception('Component file not found: ' . $path);
             }
+
+            $content = file_get_contents($path);
+
+            $php = static::getStringBetweenTags($content, '<?php', '?>');
+            $template = static::getStringBetweenTags($content, '<!-- TEMPLATE -->', '<!-- END -->');
+            $js = static::getStringBetweenTags($content, '<!-- JS -->', '<!-- END -->');
+
+            $loadSettings = function ($php) {
+                $settings = eval($php);
+                return $settings;
+            };
+
+            $settings = $loadSettings($php);
+
+            if (!isset($this->componentBeforeRender[$componentName]) && isset($settings['beforeRender'])) {
+                $this->componentBeforeRender[$componentName] = $settings['beforeRender'];
+            }
+
+            $component['settings'] = $settings;
+            $component['template'] = $template;
+            $component['js'] = $js;
+
+            $this->components[$componentName] = $component;
         }
+
+        return $this->components[$componentName];
+    }
+
+    private static function getStringBetweenTags($string, $start, $end) {
+        $string = ' ' . $string;
+        $ini = strpos($string, $start);
+        if ($ini == 0) {
+            return '';
+        }
+
+        $ini += strlen($start);
+        $len = strpos($string, $end, $ini) - $ini;
+        return substr($string, $ini, $len);
     }
 
     public function getComponentTemplate($componentName, $default = null) {
-
-        if (isset($this->componentTemplates[$componentName])) {
-            return $this->componentTemplates[$componentName];
-        }
-
-        $alias = $this->getComponentAlias($componentName);
-        $dirPath = $this->componentDir . '/' . implode('/', explode('.', $alias));
-        $templatePath = $dirPath . '.html';
-
-        if (!file_exists($templatePath)) {
-            $templatePath = $dirPath . '/template.html';
-            if (!file_exists($templatePath)) {
-                if ($default !== null) {
-                    return $default;
-                }
-                throw new Exception('Component template not found: ' . $templatePath);
-            }
-        }
-
-        $template = file_get_contents($templatePath);
-        $this->componentTemplates[$componentName] = $template;
-        return $template;
+        $comp = $this->loadComponent($componentName);
+        return $comp['template'];
     }
 
     public function getComponentJs($componentName, $default = null) {
-        $alias = $this->getComponentAlias($componentName);
-        $dirPath = $this->componentDir . '/' . implode('/', explode('.', $alias));
-        $templatePath = $dirPath . '/component.js';
-        if (!file_exists($templatePath)) {
-            if ($default !== null) {
-                return $default;
-            }
-            throw new Exception('component.js not found: ' . $templatePath);
-        }
-        return file_get_contents($templatePath);
+        $comp = $this->loadComponent($componentName);
+        return $comp['js'];
     }
 
     /////////////////////////
     // <script> functions
     /////////////////////////
 
-    public function getTemplateScripts() {
+    public function getTemplateScripts($idPrefix = 'vue-template-') {
         $result = '';
-        foreach ($this->componentTemplates as $componentName => $template) {
-            $result .= '<script type="text/template" id="vue-template-' . $componentName . '">' . ($template) . '</script>';
+        foreach ($this->components as $componentName => $component) {
+            $template = $this->getComponentTemplate($componentName);
+            $result .= '<script type="text/template" id="' . $idPrefix . $componentName . '">' . ($template) . '</script>';
         }
         return $result;
     }
 
-    public function getComponentScripts() {
+    public function getJsScripts() {
         $result = '';
         foreach ($this->renderedComponentNames as $componentName => $c) {
-            $result .= $this->getComponentScript($componentName, '');
+            $result .= $this->getJsScript($componentName, '');
         }
         return $result;
     }
 
-    public function getTemplateScript($componentName, $default = null) {
+    public function getTemplateScript($componentName, $default = null, $idPrefix = 'vue-template-') {
         $template = $this->getComponentTemplate($componentName);
-        return '<script type="text/template" id="vue-template-' . $componentName . '">' . ($template) . '</script>';
+        return '<script type="text/template" id="' . $idPrefix . $componentName . '">' . ($template) . '</script>';
     }
 
-    public function getComponentScript($componentName, $default = null) {
-        $code = $this->getComponentJs($componentName, $default);
-        return '<script type="text/javascript">' . ($code) . '</script>';
+    public function getJsScript($componentName, $default = null) {
+        return $this->getComponentJs($componentName, $default);
     }
 
-    public function getScripts($componentName = null) {
-        if ($componentName) {
-            return $this->getTemplateScript($componentName, '') . $this->getComponentScript($componentName, '');
-        }
-        return $this->getTemplateScripts() . $this->getComponentScripts();
+    public function getScripts($idPrefix = 'vue-template-') {
+        return $this->getTemplateScripts($idPrefix) . $this->getJsScripts();
     }
 
     /////////////////////////
@@ -233,14 +209,10 @@ class VuePre {
         if (strpos($dir, $this->componentDir) !== 0) {
             throw new Exception('scanDirectoryForComponents: directory must be a sub directory from "componentDirectory"');
         }
-        $files = static::recursiveGlob($dir . '/*.html');
+        $files = static::recursiveGlob($dir . '/*.php');
         foreach ($files as $file) {
             $fn = basename($file);
-            if ($fn === 'template.html') {
-                $alias = dirname($file);
-            } else {
-                $alias = substr($file, 0, -strlen('.html'));
-            }
+            $alias = substr($file, 0, -strlen('.php'));
             $name = basename($alias);
             $alias = str_replace('/', '.', substr($alias, strlen($this->componentDir . '/')));
             $this->componentAlias[$name] = $alias;
@@ -356,7 +328,7 @@ class VuePre {
         }
 
         // Load settings
-        $this->loadSettings($componentName);
+        $this->loadComponent($componentName);
 
         // Before mount
         if (isset($this->componentBeforeRender[$componentName])) {

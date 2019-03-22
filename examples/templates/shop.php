@@ -1,4 +1,5 @@
 
+<!-- TEMPLATE -->
 <div>
     <header>
         <span>{{ shop.name }}</span>
@@ -13,3 +14,4 @@
         </div>
     </main>
 </div>
+<!-- END -->

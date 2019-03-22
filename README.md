@@ -1,4 +1,5 @@
 
+
 # VuePre (WIP)
 VuePre is a package to prerender vue templates. This is useful for SEO and avoiding blank pages on page load. What VuePre does, is translating the Vue template to a pure PHP template (including all JS expressions) and caches it. Having the templates in pure PHP results in really great performace. 
 
@@ -31,52 +32,44 @@ $html = $vue->renderComponent('my-page', $data);
 ```php
 // If you set your directory like this
 $vue->setComponentDirectory(__DIR__ . '/components');
-// It's going to look for any .html file and register the filename as a component
-// So, if you have components/pages/homepage.html
-// It will set that html as the template for <homepage>
-
-// You can also use directories as your component name if you put a template.html in it
-// e.g. components/pages/homepage/template.html
-```
-Having your component name as a directory allows you to keep your code together
-You can setup your folder like this:
-```
-- components/pages/my-page/template.html
-- components/pages/my-page/component.js // Optional
-- components/pages/my-page/component.php // Optional, see "Component settings" in readme
+// It's going to look for any .php file and register the filename as a component
+// So, if you have components/pages/homepage.php
+// It will use this file for the <homepage> component
 ```
 
-## Component settings
-
-If you have a Vue component like this
-
-```javascript
-Vue.component('product', {
-	props: ['product']
-	data: {
-		name: this.product.name,
-		price: this.product.price,
-		showPrice: false,
-	},
-	methods: {
-		...
-	}
-});
-```
-And you use name, price and showPrice in your template, then you need to do the same in PHP.
+## Component example
 
 ```php
 <?php
-// components/shop/product/component.php
 return [
-	'beforeRender' => function(&$data){
-		$data['name'] = $data['product']['name'];
-		$data['price'] = $data['product']['price'];
-		$data['showPrice'] = false;
-	}
+    'beforeRender' => function (&$data) {
+	    $data['message'] = 'Hello';
+    },
 ];
+?>
+
+<!-- TEMPLATE -->
+<div>
+	<p>{{ message }}</p>
+</div>
+<!-- END -->
+
+<!-- JS -->
+<script type="text/javascript">
+
+    Vue.component('homepage', {
+        template: '#vue-template-homepage',
+        data: function () {
+            return {
+	            message: 'Hello';
+            };
+        },
+        methods: {
+        }
+    });
+</script>
+<!-- END -->
 ```
-You could of course base your template on the $props data. But this results in ugly template code.
 
 ## Generating \<scripts>
 
@@ -84,17 +77,13 @@ You can generate scripts for your component templates and your component.js file
 
 ```php
 // Based on your last render
-$vue->getScripts(); // templates (+ component.js files if available)
-$vue->getTemplateScripts(); // only templates
-$vue->getComponentScripts(); // only component.js files
+$vue->getScripts();
+$vue->getTemplateScripts(); // only template scripts
+$vue->getJsScripts(); // only js scripts
 
 // By component name
 $vue->getTemplateScript('my-page');
-$vue->getComponentScript('my-page');
-
-// Without <script>
-$vue->getTemplate('my-page');
-$vue->getComponentJs('my-page');
+$vue->getJsScript('my-page');
 
 // Usefull
 $vue->getRenderedComponentNames();
@@ -108,26 +97,15 @@ $vue->getRenderedComponentNames();
 ->renderHtml(String $html, Array $data)
 ->renderComponent(String $componentName, Array $data)
 
-// Set component settings manually
-->setComponentMethods(Array<String $componentName, AnonFunction>)
-->setComponentBeforeRender(Array<String $componentName, AnonFunction>)
-->setComponentTemplate(Array<String $componentName, String $html>) 
-->setComponentAlias(Array<String $componentName, String $alias>)
-
-// Get component info
-->getComponentAlias(String $componentName, $default = null)
-->getComponentNameViaAlias(String $alias, $default = null)
-->getTemplate(String $componentName, $default = null);
-->getComponentJs(String $componentName, $default = null);
-
 // Generating scripts
-->getScripts();
-->getTemplateScripts();
-->getComponentScripts();
-->getTemplateScript(String $componentName, $default = null);
-->getComponentScript(String $componentName, $default = null);
+->getScripts($idPrefix = 'vue-template-');
+->getTemplateScripts($idPrefix = 'vue-template-');
+->getTemplateScript(String $componentName, $default = null, $idPrefix = 'vue-template-');
+->getJsScripts();
+->getJsScript(String $componentName, $default = null);
 
 // Others
+->getComponentAlias(String $componentName, $default = null)
 ->getRenderedComponentNames();
 ```
 

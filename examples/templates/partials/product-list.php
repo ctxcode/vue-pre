@@ -1,4 +1,5 @@
 
+<!-- TEMPLATE -->
 <div>
     <div v-if="products.length === 0">
         No products :(
@@ -8,3 +9,4 @@
         <product v-for="product in products" :product="product"></product>
     </div>
 </div>
+<!-- END -->
