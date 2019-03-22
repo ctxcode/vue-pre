@@ -244,11 +244,15 @@ class VuePre {
     // Cache
     /////////////////////////
 
-    private function createCachedTemplate($html) {
+    private function createCachedTemplate($html, $slotHtml) {
         $dom = $this->parseHtml($html);
 
         $rootNode = $this->getRootNode($dom);
-        $this->handleNode($rootNode);
+        $this->handleNode($rootNode, [
+            'slotHtml' => $slotHtml,
+            'nodeDepth' => 0,
+            'nextSibling' => null,
+        ]);
 
         $html = $dom->saveHTML($rootNode);
 
@@ -311,18 +315,18 @@ class VuePre {
     // Rendering
     /////////////////////////
 
-    public function renderHtml($template, $data = []) {
+    public function renderHtml($template, $data = [], $slotHtml = '') {
 
         if (empty(trim($template))) {
             return '';
         }
 
-        $hash = md5($template . filemtime(__FILE__) . json_encode($this->componentAlias)); // If package is updated, hash should change
+        $hash = md5($template . $slotHtml . filemtime(__FILE__) . json_encode($this->componentAlias)); // If package is updated, hash should change
         $cacheFile = $this->cacheDir . '/' . $hash . '.php';
 
         // Create cache template
         if (!file_exists($cacheFile) || $this->disableCache) {
-            $html = $this->createCachedTemplate($template);
+            $html = $this->createCachedTemplate($template, $slotHtml);
             file_put_contents($cacheFile, $html);
         }
 
@@ -330,7 +334,7 @@ class VuePre {
         return $this->renderCachedTemplate($cacheFile, $data);
     }
 
-    public function renderComponent($componentName, $data = []) {
+    public function renderComponent($componentName, $data = [], $slotHtml = '') {
 
         if (!$this->componentDir) {
             throw new Exception('Trying to find component, but componentDirectory was not set');
@@ -350,10 +354,10 @@ class VuePre {
 
         // Render template
         if ($componentName === 'div') {
-            die('test');
+            die();
         }
         $template = $this->getComponentTemplate($componentName);
-        $html = $this->renderHtml($template, $data);
+        $html = $this->renderHtml($template, $data, $slotHtml);
 
         // Remember
         if (!isset($this->renderedComponentNames[$componentName])) {
@@ -394,18 +398,16 @@ class VuePre {
     }
 
     private function handleNode(DOMNode $node, array $options = []) {
-        if (count($options) === 0) {
-            $options = [
-                'nodeDepth' => 0,
-                'nextSibling' => null,
-            ];
-        }
+
         $this->replaceMustacheVariables($node);
         if (!$this->isTextNode($node)) {
             $this->stripEventHandlers($node);
             $this->handleFor($node, $options);
 
             $this->handleIf($node, $options);
+            if ($this->isRemovedFromTheDom($node)) {return;}
+
+            $this->handleSlot($node, $options);
             if ($this->isRemovedFromTheDom($node)) {return;}
 
             $this->handleComponent($node, $options);
@@ -483,6 +485,21 @@ class VuePre {
         }
     }
 
+    private function handleSlot(DOMNode $node, $options) {
+        if ($this->isTextNode($node)) {
+            return;
+        }
+        $tagName = $node->tagName;
+        if ($tagName !== 'slot') {
+            return;
+        }
+
+        $slotNode = $this->parseHtml($options['slotHtml']);
+        $slotNode = $this->getRootNode($slotNode);
+
+        $node->parentNode->replaceChild($node->ownerDocument->importNode($slotNode), $node);
+    }
+
     private function handleComponent(DOMNode $node) {
         if ($this->isTextNode($node)) {
             return;
@@ -519,8 +536,16 @@ class VuePre {
             $data[] = "'$name' => " . $phpExpr;
             $node->removeAttribute($attribute->name);
         }
+
         $dataString = implode(', ', $data);
-        $newNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' ' . $errorCode . ' echo $this->renderComponent(' . $componentNameExpr . ', [' . $dataString . ']); ' . static::PHPEND);
+
+        $slotHtml = trim($node->nodeValue);
+        $slotsVar = "''";
+        if (!empty($slotHtml)) {
+            $slotsVar = '$this->renderHtml(\'' . addslashes($slotHtml) . '\', $reallyUnrealisticVariableNameForVuePre)';
+        }
+
+        $newNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' ' . $errorCode . ' echo $this->renderComponent(' . $componentNameExpr . ', [' . $dataString . '], ' . $slotsVar . '); ' . static::PHPEND);
         $node->parentNode->replaceChild($newNode, $node);
     }
 

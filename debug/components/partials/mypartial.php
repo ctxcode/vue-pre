@@ -12,6 +12,8 @@ return [
 <div>
     <div v-html="title"></div>
 
+    <slot></slot>
+
     <div v-if="showThis">Show this</div>
     <div v-else>Not this</div>
 </div>

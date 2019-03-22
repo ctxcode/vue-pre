@@ -36,7 +36,7 @@ return [
     <div v-if="toggle">TEST TOGGLE</div>
 
     <!-- Components -->
-    <mypartial :title="title"></mypartial>
+    <mypartial :title="title"><span>{{ myVar }}</span><span>{{ myVar }}</span></mypartial>
 
 </div>
 <!-- END -->
