@@ -32,7 +32,7 @@ $vue->setComponentDirectory(__DIR__ . '/components');
 
 $html = $vue->renderComponent('page', $data);
 $templates = $vue->getTemplateScripts();
-$js = $vue->getComponentScripts();
+$js = $vue->getJsScripts();
 // $html = $vue->renderHtml('<div>{{ title }}</div>', $data);
 ?>
 
