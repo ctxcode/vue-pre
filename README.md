@@ -149,8 +149,9 @@ class ViewController{
 ```
 
 ```php
-// views/components/homepage.php
 <?php
+// views/components/homepage.php
+
 return [
     'beforeRender' => function (&$data) {
         $data = $data['componentData'];
