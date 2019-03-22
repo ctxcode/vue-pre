@@ -121,7 +121,9 @@ class ViewController{
 ```
 
 ```php
-<!-- views/components/layout.php -->
+<?php
+// views/components/layout.php
+?>
 
 <!-- TEMPLATE -->
 <div>
