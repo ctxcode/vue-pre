@@ -2,6 +2,7 @@
 <?php
 return [
     'beforeRender' => function (&$data) {
+        $data = $data['data'];
     },
 ];
 ?>
@@ -44,10 +45,11 @@ return [
 <script type="text/javascript">
 
     Vue.component('page', {
-        props: ['pageData'],
+        props: ['data'],
         template: '#vue-template-page',
         data: function () {
-            return this.pageData;
+            console.log(this.data);
+            return this.data;
         },
         methods: {
           tog: function(){

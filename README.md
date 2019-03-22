@@ -1,5 +1,4 @@
 
-
 # VuePre (WIP)
 VuePre is a package to prerender vue templates. This is useful for SEO and avoiding blank pages on page load. What VuePre does, is translating the Vue template to a pure PHP template (including all JS expressions) and caches it. Having the templates in pure PHP results in really great performace. 
 
@@ -66,6 +65,114 @@ return [
         },
         methods: {
         }
+    });
+</script>
+<!-- END -->
+```
+
+## Real world example
+
+```php
+class View{
+	public static function render($view, $data = []){
+		// Normal PHP template engine
+		...
+		return $html;
+	}
+	public static function renderComponent($name, $data = []){
+		$vue = new \LorenzV\VuePre\VuePre();
+		$vue->setCacheDirectory(Path::get('tmp'). '/cache');
+		$vue->setComponentDirectory(Path::get('views') . '/components');
+
+		$html = $vue->renderComponent($name, $data);
+		$templates = $vue->getTemplateScripts();
+		$js = $vue->getJsScripts();
+		$vueInstance = $vue->getVueInstanceScript('#app', $name, $data);
+
+		$html = '<div id="app">'.$html.'</div>'.$templates.$js.$vueInstance;
+
+		return static::render('layouts/main.html', ['CONTENT' => $html];
+	}
+}
+
+class ViewController{
+	public function homepage(){
+		$data = [
+			// Dont put private data in here, because it's shared with javascript
+			'featureProducts' => Product::where('featured', true)->limit(10)->get();
+		];
+		// Render <layout> component
+		echo View::renderComponent('layout', ['component' => 'homepage', 'data' => $data]);
+	}
+}
+```
+
+```html
+<!-- views/layouts/main.html -->
+<!DOCTYPE>
+<html>
+	<head>
+		<script src="https://cdn.jsdelivr.net/npm/vue"></script>
+	</head>
+	<body>
+		{!! $CONTENT !!}
+	<body>
+</html>
+```
+
+```php
+// views/components/layout.php
+
+<!-- TEMPLATE -->
+<div>
+	<header>...</header>
+	<main>
+		<component :is="component" :component-data="data"></component>
+	</main>
+	<footer>...</footer>
+</div>
+<!-- END -->
+
+<!-- JS -->
+<script type="text/javascript">
+    Vue.component('layout', {
+        props: ['vuePreData'],
+        template: '#vue-template-layout',
+        data: function () {
+            return this.vuePreData;
+        },
+    });
+</script>
+<!-- END -->
+```
+
+```php
+// views/components/homepage.php
+<?php
+return [
+    'beforeRender' => function (&$data) {
+        $data = $data['componentData'];
+    },
+];
+?>
+
+<!-- TEMPLATE -->
+<div>
+	<h1>Welcome</h1>
+	<p>...</p>
+	<h2>Featured products</h2>
+	<div v-for="product in featuredProducts"><h3>{{ product.name }}</h3></div>
+</div>
+<!-- END -->
+
+<!-- JS -->
+<script type="text/javascript">
+    Vue.component('homepage', {
+        props: ['componentData'],
+        template: '#vue-template-homepage',
+        data: function () {
+            return this.componentData;
+        },
     });
 </script>
 <!-- END -->

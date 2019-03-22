@@ -5,13 +5,16 @@ ini_set('display_errors', 1);
 include __DIR__ . '/../vendor/autoload.php';
 
 $data = [
-    'title' => '<h2>Hi</h2>',
-    'toggle' => true,
-    'aclass' => 'laclass',
-    'messages' => explode(' ', 'Hello there my old chum'),
-    'myVar' => 'Hello',
-    'myObject' => (object) [
-        'myProp' => 'World',
+    'component' => 'page',
+    'data' => [
+        'title' => '<h2>Hi</h2>',
+        'toggle' => true,
+        'aclass' => 'laclass',
+        'messages' => explode(' ', 'Hello there my old chum'),
+        'myVar' => 'Hello',
+        'myObject' => (object) [
+            'myProp' => 'World',
+        ],
     ],
 ];
 
@@ -30,9 +33,11 @@ $vue->setComponentDirectory(__DIR__ . '/components');
 // echo 'Compiled ' . ($compileTimes / $benchSeconds) . ' times per second';
 // exit;
 
-$html = $vue->renderComponent('page', $data);
+$html = $vue->renderComponent('layout', $data);
 $templates = $vue->getTemplateScripts();
 $js = $vue->getJsScripts();
+$vueInstance = $vue->getVueInstanceScript('#app', 'layout', $data);
+
 // $html = $vue->renderHtml('<div>{{ title }}</div>', $data);
 ?>
 
@@ -43,15 +48,6 @@ $js = $vue->getJsScripts();
 </div>
 
 <?php echo $templates; ?>
-
 <?php echo $js; ?>
+<?php echo $vueInstance; ?>
 
-<script>
-    new Vue({
-        el: '#app',
-        data: function(){
-            return { pageData: <?php echo json_encode($data); ?> };
-        },
-        template: '<page :page-data="pageData"></page>',
-    });
-</script>

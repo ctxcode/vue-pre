@@ -193,6 +193,19 @@ class VuePre {
         return $this->getTemplateScripts($idPrefix) . $this->getJsScripts();
     }
 
+    public function getVueInstanceScript($el, $componentName, $data) {
+        $html = '<script type="text/javascript">
+    var VuePreApp = new Vue({
+        el: "' . $el . '",
+        data: function(){
+            return { componentData: ' . json_encode($data) . ' };
+        },
+        template: \'<' . $componentName . ' :vue-pre-data="componentData"></' . $componentName . '>\',
+    });
+</script>';
+        return $html;
+    }
+
     /////////////////////////
     // Scan for aliasses
     /////////////////////////
