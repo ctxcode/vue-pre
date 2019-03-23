@@ -99,10 +99,13 @@ class ViewController{
 	public function homepage(){
 		$data = [
 			// Dont put private data in here, because it's shared with javascript
+			'layoutData' => [
+				'authUser' => \AuthUser::getUser()->getPublicData(),
+			],
 			'featureProducts' => Product::where('featured', true)->limit(10)->get();
 		];
-		// Render <layout> component
-		echo View::renderComponent('layout', ['component' => 'homepage', 'data' => $data]);
+		// Render <homepage> component
+		echo View::renderComponent('homepage', $data);
 	}
 }
 ```
@@ -123,13 +126,19 @@ class ViewController{
 ```php
 <?php
 // views/components/layout.php
+
+return [
+    'beforeRender' => function (&$data) {
+        $data = $data['layout-data'];
+    },
+];
 ?>
 
 <!-- TEMPLATE -->
 <div>
 	<header>...</header>
 	<main>
-		<component :is="component" :component-data="data"></component>
+		<slot></slot>
 	</main>
 	<footer>...</footer>
 </div>
@@ -138,10 +147,10 @@ class ViewController{
 <!-- JS -->
 <script type="text/javascript">
     Vue.component('layout', {
-        props: ['vuePreData'],
+        props: ['layoutData'],
         template: '#vue-template-layout',
         data: function () {
-            return this.vuePreData;
+            return this.layoutData;
         },
     });
 </script>
@@ -151,30 +160,26 @@ class ViewController{
 ```php
 <?php
 // views/components/homepage.php
-
-return [
-    'beforeRender' => function (&$data) {
-        $data = $data['componentData'];
-    },
-];
 ?>
 
 <!-- TEMPLATE -->
-<div>
-	<h1>Welcome</h1>
-	<p>...</p>
-	<h2>Featured products</h2>
-	<div v-for="product in featuredProducts"><h3>{{ product.name }}</h3></div>
-</div>
+<layout :layout-data="layoutData">
+	<div class="homepage">
+		<h1>Welcome</h1>
+		<p>...</p>
+		<h2>Featured products</h2>
+		<div v-for="product in featuredProducts"><h3>{{ product.name }}</h3></div>
+	</div>
+</layout>
 <!-- END -->
 
 <!-- JS -->
 <script type="text/javascript">
     Vue.component('homepage', {
-        props: ['componentData'],
+        props: ['vuePreData'],
         template: '#vue-template-homepage',
         data: function () {
-            return this.componentData;
+            return this.vuePreData;
         },
     });
 </script>

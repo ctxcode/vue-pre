@@ -1,6 +1,5 @@
 
 <!-- TEMPLATE -->
-<div>
 
     <layout :layout-data="layoutData">
         <div>
@@ -38,7 +37,6 @@
         </div>
     </layout>
 
-</div>
 <!-- END -->
 
 <!-- JS -->
