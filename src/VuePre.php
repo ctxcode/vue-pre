@@ -255,7 +255,7 @@ class VuePre {
             'nextSibling' => null,
         ]);
 
-        $html = $dom->saveHTML($rootNode);
+        $html = $dom->saveHTML($this->getRootNode($dom));
 
         // Replace php tags
         $html = str_replace(static::PHPOPEN, '<?php', $html);
@@ -516,6 +516,7 @@ class VuePre {
         }
         $tagName = $node->tagName;
         $this->replaceNodeWithComponent($node, $tagName);
+        // dd($node->ownerDocument->saveHTML());
     }
 
     private function replaceNodeWithComponent(DOMNode $node, $componentName, $dynamicComponent = false) {
