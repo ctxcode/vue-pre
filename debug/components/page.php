@@ -55,7 +55,7 @@
               this.toggle = !this.toggle;
               console.log(this.toggle);
           }
-        }
+        },
     });
 </script>
 <!-- END -->

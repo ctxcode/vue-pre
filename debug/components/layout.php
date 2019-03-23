@@ -18,8 +18,8 @@ return [
 
 <!-- JS -->
 <script type="text/javascript">
-    Vue.component('layoutData', {
-        props: ['layout'],
+    Vue.component('layout', {
+        props: ['layoutData'],
         template: '#vue-template-layout',
         data: function () {
             return this.layoutData;

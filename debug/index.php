@@ -49,5 +49,5 @@ $vueInstance = $vue->getVueInstanceScript('#app', 'page', $data);
 
 <?php echo $templates; ?>
 <?php echo $js; ?>
-<?php //echo $vueInstance; ?>
+<?php echo $vueInstance; ?>
 
