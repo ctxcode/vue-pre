@@ -245,6 +245,7 @@ class VuePre {
     /////////////////////////
 
     private function createCachedTemplate($html, $slotHtml) {
+
         $dom = $this->parseHtml($html);
 
         $rootNode = $this->getRootNode($dom);
@@ -375,6 +376,7 @@ class VuePre {
         // Ensure $html is treated as UTF-8, see https://stackoverflow.com/a/8218649
         if (!$document->loadHTML('<?xml encoding="utf-8" ?>' . $html)) {
             //TODO Test failure
+            throw new \Exception('Error');
         }
         /** @var LibXMLError[] $errors */
         $errors = libxml_get_errors();
@@ -383,6 +385,11 @@ class VuePre {
         libxml_use_internal_errors($internalErrors);
         libxml_disable_entity_loader($entityLoaderDisabled);
         foreach ($errors as $error) {
+            // var_dump($error);
+            // echo '<pre>';
+            // echo htmlspecialchars($html);
+            // echo '</pre>';
+            // exit;
             //TODO html5 tags can fail parsing
             //TODO Throw an exception
         }
@@ -390,6 +397,7 @@ class VuePre {
     }
 
     private function getRootNode(DOMDocument $document) {
+        // return $document->getElementsByTagName('body')[0]->firstChild;
         $rootNodes = $document->documentElement->childNodes->item(0)->childNodes;
         if ($rootNodes->length > 1) {
             throw new Exception('Template should have only one root node');
@@ -497,7 +505,9 @@ class VuePre {
         $slotNode = $this->parseHtml($options['slotHtml']);
         $slotNode = $this->getRootNode($slotNode);
 
-        $node->parentNode->replaceChild($node->ownerDocument->importNode($slotNode), $node);
+        $slotNode = $node->ownerDocument->importNode($slotNode, true);
+
+        $node->parentNode->replaceChild($slotNode, $node);
     }
 
     private function handleComponent(DOMNode $node) {
@@ -519,7 +529,7 @@ class VuePre {
             $componentNameExpr = '\'' . $componentName . '\'';
         }
 
-        $errorCode = '$this->setErrorHint(' . ($node->getLineNo()) . ', ' . json_encode($node->ownerDocument->saveHTML($node)) . ');';
+        $errorCode = '$this->setErrorHint(' . ($node->getLineNo()) . ', ' . json_encode($node->ownerDocument->saveHTML($node), JSON_UNESCAPED_SLASHES) . ');';
 
         $data = [];
         foreach (iterator_to_array($node->attributes) as $attribute) {
@@ -547,7 +557,7 @@ class VuePre {
         $slotHtml = trim($slotHtml);
         $slotsVar = "''";
         if (!empty($slotHtml)) {
-            $slotsVar = '$this->renderHtml(' . json_encode($slotHtml) . ', $reallyUnrealisticVariableNameForVuePre)';
+            $slotsVar = '$this->renderHtml(' . json_encode($slotHtml, JSON_UNESCAPED_SLASHES) . ', $reallyUnrealisticVariableNameForVuePre)';
         }
 
         $newNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' ' . $errorCode . ' echo $this->renderComponent(' . $componentNameExpr . ', [' . $dataString . '], ' . $slotsVar . '); ' . static::PHPEND);
