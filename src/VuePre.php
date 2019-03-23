@@ -263,7 +263,7 @@ class VuePre {
         // Revert html escaping within php tags
         $offset = 0;
         while (true) {
-            $found = preg_match('/<\?php(.*)\?>/', $html, $match, PREG_OFFSET_CAPTURE, $offset);
+            $found = preg_match('/<\?php((?s:.)*)\?>/', $html, $match, PREG_OFFSET_CAPTURE, $offset);
             if (!$found) {
                 break;
             }
@@ -519,7 +519,7 @@ class VuePre {
             $componentNameExpr = '\'' . $componentName . '\'';
         }
 
-        $errorCode = '$this->setErrorHint(' . ($node->getLineNo()) . ', "' . addslashes($node->ownerDocument->saveHTML($node)) . '");';
+        $errorCode = '$this->setErrorHint(' . ($node->getLineNo()) . ', ' . json_encode($node->ownerDocument->saveHTML($node)) . ');';
 
         $data = [];
         foreach (iterator_to_array($node->attributes) as $attribute) {
@@ -539,10 +539,15 @@ class VuePre {
 
         $dataString = implode(', ', $data);
 
-        $slotHtml = trim($node->nodeValue);
+        $slotHtml = '';
+        $subNodes = iterator_to_array($node->childNodes);
+        foreach ($subNodes as $index => $childNode) {
+            $slotHtml .= $node->ownerDocument->saveHTML($childNode);
+        }
+        $slotHtml = trim($slotHtml);
         $slotsVar = "''";
         if (!empty($slotHtml)) {
-            $slotsVar = '$this->renderHtml(\'' . addslashes($slotHtml) . '\', $reallyUnrealisticVariableNameForVuePre)';
+            $slotsVar = '$this->renderHtml(' . json_encode($slotHtml) . ', $reallyUnrealisticVariableNameForVuePre)';
         }
 
         $newNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' ' . $errorCode . ' echo $this->renderComponent(' . $componentNameExpr . ', [' . $dataString . '], ' . $slotsVar . '); ' . static::PHPEND);

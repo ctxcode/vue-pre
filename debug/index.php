@@ -5,16 +5,16 @@ ini_set('display_errors', 1);
 include __DIR__ . '/../vendor/autoload.php';
 
 $data = [
-    'component' => 'page',
-    'data' => [
-        'title' => '<h2>Hi</h2>',
-        'toggle' => true,
-        'aclass' => 'laclass',
-        'messages' => explode(' ', 'Hello there my old chum'),
-        'myVar' => 'Hello',
-        'myObject' => (object) [
-            'myProp' => 'World',
-        ],
+    'layoutData' => [
+        'title' => 'Yawza',
+    ],
+    'title' => '<h2>Hi</h2>',
+    'toggle' => true,
+    'aclass' => 'laclass',
+    'messages' => explode(' ', 'Hello there my old chum'),
+    'myVar' => 'Hello',
+    'myObject' => (object) [
+        'myProp' => 'World',
     ],
 ];
 
@@ -33,10 +33,10 @@ $vue->setComponentDirectory(__DIR__ . '/components');
 // echo 'Compiled ' . ($compileTimes / $benchSeconds) . ' times per second';
 // exit;
 
-$html = $vue->renderComponent('layout', $data);
+$html = $vue->renderComponent('page', $data);
 $templates = $vue->getTemplateScripts();
 $js = $vue->getJsScripts();
-$vueInstance = $vue->getVueInstanceScript('#app', 'layout', $data);
+$vueInstance = $vue->getVueInstanceScript('#app', 'page', $data);
 
 // $html = $vue->renderHtml('<div>{{ title }}</div>', $data);
 ?>

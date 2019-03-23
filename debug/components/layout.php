@@ -1,9 +1,16 @@
+<?php
+return [
+    'beforeRender' => function (&$data) {
+        $data = $data['layout-data'];
+    },
+];
+?>
 
 <!-- TEMPLATE -->
 <div>
-	<header>...</header>
+	<header>{{ title }}</header>
 	<main>
-		<component :is="component" :data="data"></component>
+        <slot></slot>
 	</main>
 	<footer>...</footer>
 </div>
@@ -11,11 +18,11 @@
 
 <!-- JS -->
 <script type="text/javascript">
-    Vue.component('layout', {
-        props: ['vuePreData'],
+    Vue.component('layoutData', {
+        props: ['layout'],
         template: '#vue-template-layout',
         data: function () {
-            return this.vuePreData;
+            return this.layoutData;
         },
     });
 </script>
