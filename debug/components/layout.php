@@ -9,6 +9,7 @@ return [
 <!-- TEMPLATE -->
 <div>
 	<header>{{ title }}</header>
+    <template>{{ title }}<span> :) </span></template>
 	<main>
         <slot></slot>
 	</main>

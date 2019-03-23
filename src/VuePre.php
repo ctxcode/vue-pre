@@ -246,6 +246,7 @@ class VuePre {
     private function createCachedTemplate($html, $slotHtml) {
 
         $dom = $this->parseHtml($html);
+        // $dom = $this->parseHtml('<div>' . $html . '</div>');
 
         $rootNode = $this->getRootNode($dom);
         $this->handleNode($rootNode, [
@@ -254,7 +255,8 @@ class VuePre {
             'nextSibling' => null,
         ]);
 
-        $html = $dom->saveHTML($this->getRootNode($dom));
+        //
+        $html = $this->getBodyHtml($dom);
 
         // Replace php tags
         $html = str_replace(static::PHPOPEN, '<?php', $html);
@@ -396,10 +398,11 @@ class VuePre {
     }
 
     private function getRootNode(DOMDocument $document) {
-        // return $document->getElementsByTagName('body')[0]->firstChild;
         $rootNodes = $document->documentElement->childNodes->item(0)->childNodes;
         if ($rootNodes->length > 1) {
-            throw new Exception('Template should have only one root node');
+            echo '<h2>Component template should have only one root node</h2>';
+            echo '<pre>' . htmlspecialchars($this->getBodyHtml($document)) . '</pre>';
+            exit;
         }
         return $rootNodes->item(0);
     }
@@ -537,9 +540,13 @@ class VuePre {
         $slotNode = $this->parseHtml($options['slotHtml']);
         $slotNode = $this->getRootNode($slotNode);
 
-        $slotNode = $node->ownerDocument->importNode($slotNode, true);
+        $subNodes = iterator_to_array($slotNode->childNodes);
+        foreach ($subNodes as $index => $childNode) {
+            $childNode = $node->ownerDocument->importNode($childNode, true);
+            $node->parentNode->insertBefore($childNode, $node);
+        }
 
-        $node->parentNode->replaceChild($slotNode, $node);
+        $this->removeNode($node);
     }
 
     private function handleComponent(DOMNode $node) {
@@ -586,7 +593,7 @@ class VuePre {
         $slotHtml = trim($slotHtml);
         $slotsVar = "''";
         if (!empty($slotHtml)) {
-            $slotsVar = '$this->renderHtml(' . json_encode($slotHtml, JSON_UNESCAPED_SLASHES) . ', $reallyUnrealisticVariableNameForVuePre)';
+            $slotsVar = '$this->renderHtml(' . json_encode('<div>' . $slotHtml . '</div>', JSON_UNESCAPED_SLASHES) . ', $reallyUnrealisticVariableNameForVuePre)';
         }
 
         $newNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' ' . $errorCode . ' echo $this->renderComponent(' . $componentNameExpr . ', [' . $dataString . '], ' . $slotsVar . '); ' . static::PHPEND);
@@ -660,6 +667,15 @@ class VuePre {
             $text = static::PHPOPEN . ' echo (' . $phpExpr . '); ' . static::PHPEND;
             $node->textContent = $text;
         }
+    }
+
+    private function getBodyHtml($dom) {
+        $html = '';
+        $subNodes = iterator_to_array($dom->getElementsByTagName('body')->item(0)->childNodes);
+        foreach ($subNodes as $index => $childNode) {
+            $html .= $dom->saveHTML($childNode);
+        }
+        return $html;
     }
 
     private function removeNode(DOMElement $node) {
