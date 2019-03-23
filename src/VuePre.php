@@ -2,7 +2,6 @@
 
 namespace LorenzV\VuePre;
 
-use DOMCharacterData;
 use DOMDocument;
 use DOMElement;
 use DOMNode;
@@ -408,11 +407,14 @@ class VuePre {
     private function handleNode(DOMNode $node, array $options = []) {
 
         $this->replaceMustacheVariables($node);
-        if (!$this->isTextNode($node)) {
+        if ($this->isElementNode($node)) {
             $this->stripEventHandlers($node);
             $this->handleFor($node, $options);
 
             $this->handleIf($node, $options);
+            if ($this->isRemovedFromTheDom($node)) {return;}
+
+            $this->handleTemplateTag($node, $options);
             if ($this->isRemovedFromTheDom($node)) {return;}
 
             $this->handleSlot($node, $options);
@@ -429,6 +431,21 @@ class VuePre {
 
             $subOptions = $options;
             $subOptions['nodeDepth'] += 1;
+            // $subNode = $node->firstChild;
+            // $lastKeptNode = null;
+            // while ($subNode) {
+            //     $next = $subNode->nextSibling;
+            //     $subOptions['nextSibling'] = $next;
+            //     $this->handleNode($subNode, $subOptions);
+            //     if (!$this->isRemovedFromTheDom($subNode)) {
+            //         $lastKeptNode = $subNode;
+            //     }
+            //     if ($lastKeptNode) {
+            //         $subNode = $lastKeptNode->nextSibling;
+            //     } else {
+            //         $subNode = $next;
+            //     }
+            // }
             $subNodes = iterator_to_array($node->childNodes);
             foreach ($subNodes as $index => $childNode) {
                 $subOptions['nextSibling'] = isset($subNodes[$index + 1]) ? $subNodes[$index + 1] : null;
@@ -438,9 +455,6 @@ class VuePre {
     }
 
     private function stripEventHandlers(DOMNode $node) {
-        if ($this->isTextNode($node)) {
-            return;
-        }
         foreach ($node->attributes as $attribute) {
             if (strpos($attribute->name, 'v-on:') === 0) {
                 $node->removeAttribute($attribute->name);
@@ -493,10 +507,28 @@ class VuePre {
         }
     }
 
-    private function handleSlot(DOMNode $node, $options) {
-        if ($this->isTextNode($node)) {
+    private function handleTemplateTag(DOMNode $node, $options) {
+        $tagName = $node->tagName;
+        if ($tagName !== 'template') {
             return;
         }
+
+        $subNodes = iterator_to_array($node->childNodes);
+        foreach ($subNodes as $index => $childNode) {
+            $node->parentNode->insertBefore($childNode, $node);
+        }
+
+        $newOptions = $options;
+
+        foreach ($subNodes as $index => $childNode) {
+            $newOptions['nextSibling'] = $childNode->nextSibling;
+            $this->handleNode($childNode, $options);
+        }
+
+        $this->removeNode($node);
+    }
+
+    private function handleSlot(DOMNode $node, $options) {
         $tagName = $node->tagName;
         if ($tagName !== 'slot') {
             return;
@@ -511,12 +543,8 @@ class VuePre {
     }
 
     private function handleComponent(DOMNode $node) {
-        if ($this->isTextNode($node)) {
-            return;
-        }
         $tagName = $node->tagName;
         $this->replaceNodeWithComponent($node, $tagName);
-        // dd($node->ownerDocument->saveHTML());
     }
 
     private function replaceNodeWithComponent(DOMNode $node, $componentName, $dynamicComponent = false) {
@@ -566,9 +594,6 @@ class VuePre {
     }
 
     private function handleIf(DOMNode $node, array $options) {
-        if ($this->isTextNode($node)) {
-            return;
-        }
         if ($node->hasAttribute('v-if')) {
             $conditionString = $node->getAttribute('v-if');
             $node->removeAttribute('v-if');
@@ -599,9 +624,6 @@ class VuePre {
         }
     }
     private function handleFor(DOMNode $node, array $options) {
-        if ($this->isTextNode($node)) {
-            return;
-        }
         /** @var DOMElement $node */
         if ($node->hasAttribute('v-for')) {
             list($itemName, $listName) = explode(' in ', $node->getAttribute('v-for'));
@@ -630,9 +652,6 @@ class VuePre {
         }
     }
     private function handleRawHtml(DOMNode $node) {
-        if ($this->isTextNode($node)) {
-            return;
-        }
         /** @var DOMElement $node */
         if ($node->hasAttribute('v-html')) {
             $expr = $node->getAttribute('v-html');
@@ -651,9 +670,12 @@ class VuePre {
      *
      * @return bool
      */
-    private function isTextNode(DOMNode $node) {
-        return $node instanceof DOMCharacterData;
+    private function isElementNode(DOMNode $node) {
+        return $node->nodeType === 1;
     }
+    // private function isTextNode(DOMNode $node) {
+    //     return $node instanceof DOMCharacterData;
+    // }
     private function isRemovedFromTheDom(DOMNode $node) {
         return $node->parentNode === null;
     }
