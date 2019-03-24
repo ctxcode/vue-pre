@@ -111,9 +111,9 @@ class VuePre {
 
             $content = file_get_contents($path);
 
-            $php = static::getStringBetweenTags($content, '<\?php', '\s\?>');
-            $template = static::getStringBetweenTags($content, '<template[^>]*>', '<\/template>');
-            $js = static::getStringBetweenTags($content, '<script[^>]*>', '<\/script>');
+            $php = static::getStringBetweenTags($content, '<\?php\s', '\s\?>');
+            $template = static::getStringBetweenTags($content, '<template ?[^>]*>', '<\/template>');
+            $js = static::getStringBetweenTags($content, '<script ?[^>]*>', '<\/script>');
 
             $loadSettings = function ($php) {
                 $settings = eval($php);
