@@ -9,6 +9,10 @@
     <div>{{ ([1,2,3].indexOf(2) === 1) ? 'Found' : 'Not found' }}</div>
     <div>{{ ([1, myVar,3].indexOf(myVar) === 1) ? 'Found' : 'Not found' }}</div>
 
+    Toggle template:
+    <template v-if="toggle">On</template>
+    <template v-else>Off</template>
+
     <!-- foreach && if/else-if/else -->
     <div v-for="i in [1,2]">
         <h2>Test#{{ i }}</h2>
