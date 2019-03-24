@@ -109,11 +109,11 @@ class VuePre {
                 throw new Exception('Component file not found: ' . $path);
             }
 
-            $content = file_get_contents($path);
+            $content = "\n" . file_get_contents($path);
 
-            $php = static::getStringBetweenTags($content, '<\?php\s', '\s\?>');
-            $template = static::getStringBetweenTags($content, '<template ?[^>]*>', '<\/template>');
-            $js = static::getStringBetweenTags($content, '<script ?[^>]*>', '<\/script>');
+            $php = static::getStringBetweenTags($content, '\n<\?php\s', '\n\?>');
+            $template = static::getStringBetweenTags($content, '\n<template ?[^>]*>', '\n<\/template>');
+            $js = static::getStringBetweenTags($content, '\n<script ?[^>]*>', '\n<\/script>');
 
             $loadSettings = function ($php) {
                 $settings = eval($php);
