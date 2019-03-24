@@ -207,7 +207,15 @@ class VuePre {
         return '<script type="text/javascript">' . $this->getComponentJs($componentName, $default) . '</script>';
     }
 
-    public function getScripts($idPrefix = 'vue-template-') {
+    public function getScripts($componentName = null, $idPrefix = 'vue-template-') {
+        if ($componentName) {
+            $result = '';
+            foreach ($this->components as $componentName => $component) {
+                $result .= $this->getTemplateScript($componentName, null, $idPrefix);
+                $result .= $this->getJsScript($componentName);
+            }
+            return $result;
+        }
         return $this->getTemplateScripts($idPrefix) . $this->getJsScripts();
     }
 
