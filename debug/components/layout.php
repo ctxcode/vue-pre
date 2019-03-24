@@ -6,19 +6,18 @@ return [
 ];
 ?>
 
-<!-- TEMPLATE -->
-<div>
-	<header>{{ title }}</header>
-    <template>{{ title }}<span> :) </span></template>
-	<main>
-        <slot></slot>
-	</main>
-	<footer>...</footer>
-</div>
-<!-- END -->
+<template>
+    <div>
+    	<header>{{ title }}</header>
+        <template>{{ title }}<span> :) </span></template>
+    	<main>
+            <slot></slot>
+    	</main>
+    	<footer>...</footer>
+    </div>
+</template>
 
-<!-- JS -->
-<script type="text/javascript">
+<script>
     Vue.component('layout', {
         props: ['layoutData'],
         template: '#vue-template-layout',
@@ -27,4 +26,3 @@ return [
         },
     });
 </script>
-<!-- END -->

@@ -111,9 +111,9 @@ class VuePre {
 
             $content = file_get_contents($path);
 
-            $php = static::getStringBetweenTags($content, '<?php', '?>');
-            $template = static::getStringBetweenTags($content, '<!-- TEMPLATE -->', '<!-- END -->');
-            $js = static::getStringBetweenTags($content, '<!-- JS -->', '<!-- END -->');
+            $php = static::getStringBetweenTags($content, '<\?php', '\s\?>');
+            $template = static::getStringBetweenTags($content, '<template[^>]*>', '<\/template>');
+            $js = static::getStringBetweenTags($content, '<script[^>]*>', '<\/script>');
 
             $loadSettings = function ($php) {
                 $settings = eval($php);
@@ -136,16 +136,35 @@ class VuePre {
         return $this->components[$componentName];
     }
 
-    private static function getStringBetweenTags($string, $start, $end) {
-        $string = ' ' . $string;
-        $ini = strpos($string, $start);
-        if ($ini == 0) {
+    private static function getStringBetweenTags($string, $startReg, $endReg) {
+        $found = preg_match("/" . $startReg . "/", $string, $match, PREG_OFFSET_CAPTURE);
+        if (!$found) {
             return '';
         }
 
-        $ini += strlen($start);
-        $len = strpos($string, $end, $ini) - $ini;
-        return substr($string, $ini, $len);
+        $startPos = $match[0][1] + strlen($match[0][0]);
+        $result = '';
+        $count = 1;
+        while (preg_match("/" . $startReg . "|" . $endReg . "/", $string, $match, PREG_OFFSET_CAPTURE, $match[0][1] + 1)) {
+            $isStart = preg_match("/" . $startReg . "/", $match[0][0]);
+
+            if ($isStart) {
+                $count++;
+                continue;
+            }
+
+            $count--;
+            if ($count === 0) {
+                $result = substr($string, $startPos, $match[0][1] - $startPos);
+                break;
+            }
+        }
+
+        if ($count !== 0) {
+            throw new \Exception('Cannot find closing tag "' . $endReg . '"');
+        }
+
+        return $result;
     }
 
     public function getComponentTemplate($componentName, $default = null) {
@@ -185,7 +204,7 @@ class VuePre {
     }
 
     public function getJsScript($componentName, $default = null) {
-        return $this->getComponentJs($componentName, $default);
+        return '<script type="text/javascript">' . $this->getComponentJs($componentName, $default) . '</script>';
     }
 
     public function getScripts($idPrefix = 'vue-template-') {

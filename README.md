@@ -47,15 +47,13 @@ return [
 ];
 ?>
 
-<!-- TEMPLATE -->
-<div>
-	<p>{{ message }}</p>
-</div>
-<!-- END -->
+<template>
+	<div>
+		<p>{{ message }}</p>
+	</div>
+</template>
 
-<!-- JS -->
-<script type="text/javascript">
-
+<script>
     Vue.component('homepage', {
         template: '#vue-template-homepage',
         data: function () {
@@ -67,7 +65,6 @@ return [
         }
     });
 </script>
-<!-- END -->
 ```
 
 ## Real world example
@@ -134,18 +131,17 @@ return [
 ];
 ?>
 
-<!-- TEMPLATE -->
-<div>
-	<header>...</header>
-	<main>
-		<slot></slot>
-	</main>
-	<footer>...</footer>
-</div>
-<!-- END -->
+<template>
+	<div>
+		<header>...</header>
+		<main>
+			<slot></slot>
+		</main>
+		<footer>...</footer>
+	</div>
+</template>
 
-<!-- JS -->
-<script type="text/javascript">
+<script>
     Vue.component('layout', {
         props: ['layoutData'],
         template: '#vue-template-layout',
@@ -154,7 +150,6 @@ return [
         },
     });
 </script>
-<!-- END -->
 ```
 
 ```php
@@ -162,19 +157,18 @@ return [
 // views/components/homepage.php
 ?>
 
-<!-- TEMPLATE -->
-<layout :layout-data="layoutData">
-	<div class="homepage">
-		<h1>Welcome</h1>
-		<p>...</p>
-		<h2>Featured products</h2>
-		<div v-for="product in featuredProducts"><h3>{{ product.name }}</h3></div>
-	</div>
-</layout>
-<!-- END -->
+<template>
+	<layout :layout-data="layoutData">
+		<div class="homepage">
+			<h1>Welcome</h1>
+			<p>...</p>
+			<h2>Featured products</h2>
+			<div v-for="product in featuredProducts"><h3>{{ product.name }}</h3></div>
+		</div>
+	</layout>
+</template>
 
-<!-- JS -->
-<script type="text/javascript">
+<script>
     Vue.component('homepage', {
         props: ['vuePreData'],
         template: '#vue-template-homepage',
@@ -183,7 +177,6 @@ return [
         },
     });
 </script>
-<!-- END -->
 ```
 
 ## Generating \<scripts>

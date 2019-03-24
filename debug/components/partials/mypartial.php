@@ -8,18 +8,17 @@ return [
 
 ?>
 
-<!-- TEMPLATE -->
-<div>
-    <div v-html="title"></div>
+<template>
+    <div>
+        <div v-html="title"></div>
 
-    <slot></slot>
+        <slot></slot>
 
-    <div v-if="showThis">Show this</div>
-    <div v-else>Not this</div>
-</div>
-<!-- END -->
+        <div v-if="showThis">Show this</div>
+        <div v-else>Not this</div>
+    </div>
+</template>
 
-<!-- JS -->
 <script type="text/javascript">
 
     Vue.component('mypartial', {
@@ -38,4 +37,3 @@ return [
         }
     });
 </script>
-<!-- END -->
