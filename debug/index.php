@@ -18,7 +18,7 @@ $data = [
     ],
 ];
 
-$vue = new \VuePre\VuePre();
+$vue = new \VuePre\Engine();
 $vue->disableCache = true;
 $vue->setCacheDirectory(__DIR__ . '/cache');
 $vue->setComponentDirectory(__DIR__ . '/components');
