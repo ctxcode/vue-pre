@@ -10,7 +10,7 @@
     ],
     "autoload": {
         "psr-4": {
-            "Ctxkiwi\\VuePre\\": "src"
+            "VuePre\\": "src"
         }
     },
     "require": {

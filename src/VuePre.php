@@ -1,6 +1,6 @@
 <?php
 
-namespace Ctxkiwi\VuePre;
+namespace VuePre;
 
 use DOMDocument;
 use DOMElement;

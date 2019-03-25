@@ -5,7 +5,7 @@ ini_set('display_errors', 1);
 
 include __DIR__ . '/../vendor/autoload.php';
 
-use \Ctxkiwi\VuePre\ConvertJsExpression;
+use \VuePre\ConvertJsExpression;
 
 $data = [
     'foo' => 6,

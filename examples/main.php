@@ -18,7 +18,7 @@ $data = [
     ],
 ];
 
-$vue = new \Ctxkiwi\VuePre\VuePre();
+$vue = new \VuePre\VuePre();
 $vue->setCacheDirectory(__DIR__ . '/cache');
 $vue->setComponentDirectory(__DIR__ . '/templates');
 
