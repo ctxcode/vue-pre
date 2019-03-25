@@ -1,6 +1,6 @@
 <?php
 
-namespace LorenzV\VuePre;
+namespace Ctxkiwi\VuePre;
 
 use DOMDocument;
 use DOMElement;

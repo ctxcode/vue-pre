@@ -14,7 +14,7 @@ composer require ctxkiwi/vue-pre
 ## Basic usage
 
 ```php 
-$vue = new \LorenzV\VuePre\VuePre();
+$vue = new \Ctxkiwi\VuePre\VuePre();
 $vue->setCacheDirectory(__DIR__ . '/cache');
 
 // Method 1
@@ -77,7 +77,7 @@ class View{
 		return $html;
 	}
 	public static function renderComponent($name, $data = []){
-		$vue = new \LorenzV\VuePre\VuePre();
+		$vue = new \Ctxkiwi\VuePre\VuePre();
 		$vue->setCacheDirectory(Path::get('tmp'). '/cache');
 		$vue->setComponentDirectory(Path::get('views') . '/components');
 

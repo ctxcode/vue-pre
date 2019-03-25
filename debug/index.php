@@ -18,7 +18,7 @@ $data = [
     ],
 ];
 
-$vue = new \LorenzV\VuePre\VuePre();
+$vue = new \Ctxkiwi\VuePre\VuePre();
 $vue->disableCache = true;
 $vue->setCacheDirectory(__DIR__ . '/cache');
 $vue->setComponentDirectory(__DIR__ . '/components');
