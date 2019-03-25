@@ -8,7 +8,7 @@ This package is still under development and can change frequently
 
 ## Installation
 ```
-composer require lorenzv/VuePre
+composer require LorenzV/VuePre
 ```
 
 ## Basic usage
