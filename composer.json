@@ -1,5 +1,5 @@
 {
-    "name": "LorenzV/VuePre",
+    "name": "ctxkiwi/vue-pre",
     "description": "Pre-render Vue.js templates in PHP",
     "type": "library",
     "authors": [

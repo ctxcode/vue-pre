@@ -8,7 +8,7 @@ This package is still under development and can change frequently
 
 ## Installation
 ```
-composer require LorenzV/VuePre
+composer require ctxkiwi/vue-pre
 ```
 
 ## Basic usage
