@@ -267,7 +267,6 @@ Note: Feel free to make an issue for these, so i can make them a prority. The on
 	- `ignoreVariableNotFound` `ignoreMethodNotFound`
 	- `ignoreVariableNames` `ignoreMethodNames`
 	- `ignoreSubComponents` `ignoreSubComponentNames`
-- Named slots
 
 ## Contributors
 
