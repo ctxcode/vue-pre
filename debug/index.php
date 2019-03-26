@@ -5,6 +5,9 @@ ini_set('display_errors', 1);
 include __DIR__ . '/../vendor/autoload.php';
 
 $data = [
+    'layoutData' => [
+        'title' => 'Yawza',
+    ],
     'title' => '<h2>Hi</h2>',
     'toggle' => true,
     'aclass' => 'laclass',
@@ -15,14 +18,10 @@ $data = [
     ],
 ];
 
-$vue = new \LorenzV\VuePre\VuePre();
+$vue = new \VuePre\Engine();
 $vue->disableCache = true;
 $vue->setCacheDirectory(__DIR__ . '/cache');
 $vue->setComponentDirectory(__DIR__ . '/components');
-
-$vue->setComponentAlias([
-    'mypartial' => 'partials.mypartial',
-]);
 
 // $benchSeconds = 2;
 // $end = time() + $benchSeconds;
@@ -35,10 +34,20 @@ $vue->setComponentAlias([
 // exit;
 
 $html = $vue->renderComponent('page', $data);
+$templates = $vue->getTemplateScripts();
+$js = $vue->getJsScripts();
+$vueInstance = $vue->getVueInstanceScript('#app', 'page', $data);
+
 // $html = $vue->renderHtml('<div>{{ title }}</div>', $data);
 ?>
+
+<script src="https://cdn.jsdelivr.net/npm/vue"></script>
 
 <div id="app">
     <?php echo $html; ?>
 </div>
+
+<?php echo $templates; ?>
+<?php echo $js; ?>
+<?php //echo $vueInstance; ?>
 

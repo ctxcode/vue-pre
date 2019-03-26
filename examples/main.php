@@ -18,7 +18,7 @@ $data = [
     ],
 ];
 
-$vue = new \LorenzV\VuePre\VuePre();
+$vue = new \VuePre\Engine();
 $vue->setCacheDirectory(__DIR__ . '/cache');
 $vue->setComponentDirectory(__DIR__ . '/templates');
 

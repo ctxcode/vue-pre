@@ -8,13 +8,13 @@ This package is still under development and can change frequently
 
 ## Installation
 ```
-composer require lorenzv/php-vue-template-prerender
+composer require ctxkiwi/vue-pre
 ```
 
 ## Basic usage
 
 ```php 
-$vue = new \LorenzV\VuePre\VuePre();
+$vue = new \VuePre\Engine();
 $vue->setCacheDirectory(__DIR__ . '/cache');
 
 // Method 1
@@ -31,52 +31,153 @@ $html = $vue->renderComponent('my-page', $data);
 ```php
 // If you set your directory like this
 $vue->setComponentDirectory(__DIR__ . '/components');
-// It's going to look for any .html file and register the filename as a component
-// So, if you have components/pages/homepage.html
-// It will set that html as the template for <homepage>
-
-// You can also use directories as your component name if you put a template.html in it
-// e.g. components/pages/homepage/template.html
-```
-Having your component name as a directory allows you to keep your code together
-You can setup your folder like this:
-```
-- components/pages/my-page/template.html
-- components/pages/my-page/component.js // Optional
-- components/pages/my-page/component.php // Optional, see "Component settings" in readme
+// It's going to look for any .php file and register the filename as a component
+// So, if you have components/pages/homepage.php
+// It will use this file for the <homepage> component
 ```
 
-## Component settings
-
-If you have a Vue component like this
-
-```javascript
-Vue.component('product', {
-	props: ['product']
-	data: {
-		name: this.product.name,
-		price: this.product.price,
-		showPrice: false,
-	},
-	methods: {
-		...
-	}
-});
-```
-And you use name & price in your template, then you need to do the same in PHP.
+## Component example
 
 ```php
 <?php
-// components/shop/product/component.php
 return [
-	'beforeRender' => function(&$data){
-		$data['name'] = $data['product']['name'];
-		$data['price'] = $data['product']['price'];
-		$data['showPrice'] = false;
-	}
+    'beforeRender' => function (&$data) {
+	    $data['message'] = 'Hello';
+    },
 ];
+?>
+
+<template>
+	<div>
+		<p>{{ message }}</p>
+	</div>
+</template>
+
+<script>
+    Vue.component('homepage', {
+        template: '#vue-template-homepage',
+        data: function () {
+            return {
+	            message: 'Hello';
+            };
+        },
+        methods: {
+        }
+    });
+</script>
 ```
-You could of course base your template on the $props data. But this results in ugly template code.
+
+## Real world example
+
+```php
+class View{
+	public static function render($view, $data = []){
+		// Normal PHP template engine
+		...
+		return $html;
+	}
+	public static function renderComponent($name, $data = []){
+		$vue = new \VuePre\Engine();
+		$vue->setCacheDirectory(Path::get('tmp'). '/cache');
+		$vue->setComponentDirectory(Path::get('views') . '/components');
+
+		$html = $vue->renderComponent($name, $data);
+		$templates = $vue->getTemplateScripts();
+		$js = $vue->getJsScripts();
+		$vueInstance = $vue->getVueInstanceScript('#app', $name, $data);
+
+		$html = '<div id="app">'.$html.'</div>'.$templates.$js.$vueInstance;
+
+		return static::render('layouts/main.html', ['CONTENT' => $html];
+	}
+}
+
+class ViewController{
+	public function homepage(){
+		$data = [
+			// Dont put private data in here, because it's shared with javascript
+			'layoutData' => [
+				'authUser' => \AuthUser::getUser()->getPublicData(),
+			],
+			'featureProducts' => Product::where('featured', true)->limit(10)->get();
+		];
+		// Render <homepage> component
+		echo View::renderComponent('homepage', $data);
+	}
+}
+```
+
+```html
+<!-- views/layouts/main.html -->
+<!DOCTYPE>
+<html>
+	<head>
+		<script src="https://cdn.jsdelivr.net/npm/vue"></script>
+	</head>
+	<body>
+		{!! $CONTENT !!}
+	<body>
+</html>
+```
+
+```php
+<?php
+// views/components/layout.php
+
+return [
+    'beforeRender' => function (&$data) {
+        $data = $data['layout-data'];
+    },
+];
+?>
+
+<template>
+	<div>
+		<header>...</header>
+		<main>
+			<slot></slot>
+		</main>
+		<footer>...</footer>
+	</div>
+</template>
+
+<script>
+    Vue.component('layout', {
+        props: ['layoutData'],
+        template: '#vue-template-layout',
+        data: function () {
+            return this.layoutData;
+        },
+    });
+</script>
+```
+
+```php
+<?php
+// views/components/homepage.php
+?>
+
+<template>
+	<layout :layout-data="layoutData">
+		<div class="homepage">
+			<h1>Welcome</h1>
+			<p>...</p>
+			<h2>Featured products</h2>
+			<div v-for="product in featuredProducts"><h3>{{ product.name }}</h3></div>
+		</div>
+	</layout>
+</template>
+
+<script>
+    Vue.component('homepage', {
+        props: ['vuePreData'],
+        template: '#vue-template-homepage',
+        data: function () {
+            return this.vuePreData;
+        },
+    });
+</script>
+```
 
 ## Generating \<scripts>
 
@@ -84,17 +185,13 @@ You can generate scripts for your component templates and your component.js file
 
 ```php
 // Based on your last render
-$vue->getScripts(); // templates (+ component.js files if available)
-$vue->getTemplateScripts(); // only templates
-$vue->getComponentScripts(); // ony component.js files
+$vue->getScripts();
+$vue->getTemplateScripts(); // only template scripts
+$vue->getJsScripts(); // only js scripts
 
 // By component name
 $vue->getTemplateScript('my-page');
-$vue->getComponentScript('my-page');
-
-// Without <script>
-$vue->getTemplate('my-page');
-$vue->getComponentJs('my-page');
+$vue->getJsScript('my-page');
 
 // Usefull
 $vue->getRenderedComponentNames();
@@ -108,26 +205,15 @@ $vue->getRenderedComponentNames();
 ->renderHtml(String $html, Array $data)
 ->renderComponent(String $componentName, Array $data)
 
-// Set component settings manually
-->setComponentMethods(Array<String $componentName, AnonFunction>)
-->setComponentBeforeRender(Array<String $componentName, AnonFunction>)
-->setComponentTemplate(Array<String $componentName, String $html>) 
-->setComponentAlias(Array<String $componentName, String $alias>)
-
-// Get component info
-->getComponentAlias(String $componentName, $default = null)
-->getComponentNameViaAlias(String $alias, $default = null)
-->getTemplate(String $componentName, $default = null);
-->getComponentJs(String $componentName, $default = null);
-
 // Generating scripts
-->getScripts();
-->getTemplateScripts();
-->getComponentScripts();
-->getTemplateScript(String $componentName, $default = null);
-->getComponentScript(String $componentName, $default = null);
+->getScripts($idPrefix = 'vue-template-');
+->getTemplateScripts($idPrefix = 'vue-template-');
+->getTemplateScript(String $componentName, $default = null, $idPrefix = 'vue-template-');
+->getJsScripts();
+->getJsScript(String $componentName, $default = null);
 
 // Others
+->getComponentAlias(String $componentName, $default = null)
 ->getRenderedComponentNames();
 ```
 
@@ -174,7 +260,6 @@ Currently i don't have many examples. More will be added later. Feel free to mak
 
 Note: Feel free to make an issue for these, so i can make them a prority. The only reason these are not implemented yet is because of low priority.
 
-- Handle `<template>` elements
 - Attributes `v-model` `:value` `:selected` `:checked` `:style`
 - Binding non-binding attributes to components
 - Custom error handlers
@@ -182,8 +267,7 @@ Note: Feel free to make an issue for these, so i can make them a prority. The on
 	- `ignoreVariableNotFound` `ignoreMethodNotFound`
 	- `ignoreVariableNames` `ignoreMethodNames`
 	- `ignoreSubComponents` `ignoreSubComponentNames`
-- Computed values
-- Look into `<slot></slot>` tags
+- Named slots
 
 ## Contributors
 

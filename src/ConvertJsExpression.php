@@ -1,6 +1,6 @@
 <?php
 
-namespace LorenzV\VuePre;
+namespace VuePre;
 
 class ConvertJsExpression {
 
@@ -73,7 +73,7 @@ class ConvertJsExpression {
         if (strpos($expr, '.length') > 0 && $this->match($lengthReg, $expr, $match)) {
             $this->match($lengthRegGroups, $expr, $match);
             $value = $this->parseValue($match[1]);
-            return "\LorenzV\VuePre\ConvertJsExpression::length($value)"; // Make to return -1 instead of false
+            return "\VuePre\ConvertJsExpression::length($value)"; // Make to return -1 instead of false
         }
         // Variable
         if ($this->match($varReg, $expr, $match)) {
@@ -106,7 +106,7 @@ class ConvertJsExpression {
                 }
             }
 
-            return $pre . '\LorenzV\VuePre\ConvertJsExpression::getObjectValue($' . $varName . ', [' . implode(", ", $path) . '])';
+            return $pre . '\VuePre\ConvertJsExpression::getObjectValue($' . $varName . ', [' . implode(", ", $path) . '])';
         }
         // ( ... )
         if ($expr[0] === '(') {
@@ -143,7 +143,7 @@ class ConvertJsExpression {
                     $expr2 = $this->parseValue($subMatch[2]);
                     $op = trim($subMatch[1]);
                     if ($op === '+') {
-                        $result = "\LorenzV\VuePre\ConvertJsExpression::plus($result, $expr2)";
+                        $result = "\VuePre\ConvertJsExpression::plus($result, $expr2)";
                     } else {
                         $result = $result . ' ' . $op . ' ' . $expr2;
                         // var_dump($expr);
@@ -203,7 +203,7 @@ class ConvertJsExpression {
             $this->match($indexOfRegGroups, $expr, $match);
             $haystack = $this->parseValue($match[1]);
             $needle = $this->parseValue(substr($match[2], 1, -1));
-            return "\LorenzV\VuePre\ConvertJsExpression::indexOf($haystack, $needle)"; // Make to return -1 instead of false
+            return "\VuePre\ConvertJsExpression::indexOf($haystack, $needle)"; // Make to return -1 instead of false
         }
 
         $this->fail();
@@ -231,14 +231,14 @@ class ConvertJsExpression {
             $match = [];
             foreach ($matches as $k => $v) {
                 if (!is_int($k)) {continue;}
-                $v = array_values(array_filter($v, '\LorenzV\VuePre\ConvertJsExpression::filterRegexResults'));
+                $v = array_values(array_filter($v, '\VuePre\ConvertJsExpression::filterRegexResults'));
                 if (count($v) > 0) {
                     $match[] = $v;
                 }
             }
         } else {
             $result = preg_match($regex, $expr, $match);
-            $match = array_values(array_filter($match, '\LorenzV\VuePre\ConvertJsExpression::filterRegexResults'));
+            $match = array_values(array_filter($match, '\VuePre\ConvertJsExpression::filterRegexResults'));
         }
 
         return $result;

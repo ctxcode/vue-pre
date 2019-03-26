@@ -1,8 +1,7 @@
 <?php
 
-namespace LorenzV\VuePre;
+namespace VuePre;
 
-use DOMCharacterData;
 use DOMDocument;
 use DOMElement;
 use DOMNode;
@@ -12,12 +11,13 @@ use LibXMLError;
 
 //
 
-class VuePre {
+class Engine {
 
     private $componentDir = null;
     private $cacheDir = null;
 
     private $componentAlias = [];
+    private $components = [];
     private $methods = [];
     private $renderedComponentNames = [];
     private $componentBeforeRender = [];
@@ -26,6 +26,9 @@ class VuePre {
 
     public $disableCache = false;
     public $disableAutoScan = false;
+
+    private $errorLine = null;
+    private $errorExpression = null;
 
     const PHPOPEN = '__VUEPREPHPTAG__';
     const PHPEND = '__VUEPREPHPENDTAG__';
@@ -86,132 +89,145 @@ class VuePre {
         throw new \Exception('Cannot find alias for "' . $componentName . '"');
     }
 
-    public function getComponentNameViaAlias($alias, $default = null) {
-        foreach ($this->componentAlias as $tag => $longName) {
-            if ($alias === $longName) {
-                return $tag;
-            }
-        }
-        if ($default) {
-            return $default;
-        }
-        throw new \Exception('Cannot find alias for "' . $alias . '"');
-    }
-
-    /////////////////////////
-    // Component Settings
-    /////////////////////////
-
-    public function setComponentMethods(array $methods) {
-        foreach ($methods as $componentName => $method) {
-            $this->methods[$componentName] = $method;
-        }
-    }
-
-    public function setComponentBeforeRender(array $methods) {
-        foreach ($methods as $componentName => $func) {
-            $this->componentBeforeRender[$componentName] = $func;
-        }
-    }
-
-    public function setComponentTemplate(array $templates) {
-        foreach ($templates as $k => $template) {
-            $this->componentTemplates[$k] = $template;
-        }
-    }
-
     /////////////////////////
     // Helper functions
     /////////////////////////
 
-    public function loadSettings($componentName) {
-        if (!isset($this->settingsLoaded[$componentName])) {
+    public function loadComponent($componentName) {
+        if (!isset($this->components[$componentName])) {
+            $component = [
+                'settings' => null,
+                'template' => null,
+                'js' => null,
+            ];
+
             $alias = $this->getComponentAlias($componentName);
             $dirPath = $this->componentDir . '/' . implode('/', explode('.', $alias));
-            $this->settingsLoaded[$componentName] = true;
-            $settingsPath = $dirPath . '/component.php';
-            if (file_exists($settingsPath)) {
-                $settings = include $settingsPath;
-                if (!isset($this->componentBeforeRender[$componentName]) && isset($settings['beforeRender'])) {
-                    $this->componentBeforeRender[$componentName] = $settings['beforeRender'];
-                }
+            $path = $dirPath . '.php';
+
+            if (!file_exists($path)) {
+                throw new Exception('Component file not found: ' . $path);
+            }
+
+            $content = "\n" . file_get_contents($path);
+
+            $php = static::getStringBetweenTags($content, '\n<\?php\s', '\n\?>');
+            $template = static::getStringBetweenTags($content, '\n<template ?[^>]*>', '\n<\/template>');
+            $js = static::getStringBetweenTags($content, '\n<script ?[^>]*>', '\n<\/script>');
+
+            $loadSettings = function ($php) {
+                $settings = eval($php);
+                return $settings;
+            };
+
+            $settings = $loadSettings($php);
+
+            if (!isset($this->componentBeforeRender[$componentName]) && isset($settings['beforeRender'])) {
+                $this->componentBeforeRender[$componentName] = $settings['beforeRender'];
+            }
+
+            $component['settings'] = $settings;
+            $component['template'] = $template;
+            $component['js'] = $js;
+
+            $this->components[$componentName] = $component;
+        }
+
+        return $this->components[$componentName];
+    }
+
+    private static function getStringBetweenTags($string, $startReg, $endReg) {
+        $found = preg_match("/" . $startReg . "/", $string, $match, PREG_OFFSET_CAPTURE);
+        if (!$found) {
+            return '';
+        }
+
+        $startPos = $match[0][1] + strlen($match[0][0]);
+        $result = '';
+        $count = 1;
+        while (preg_match("/" . $startReg . "|" . $endReg . "/", $string, $match, PREG_OFFSET_CAPTURE, $match[0][1] + 1)) {
+            $isStart = preg_match("/" . $startReg . "/", $match[0][0]);
+
+            if ($isStart) {
+                $count++;
+                continue;
+            }
+
+            $count--;
+            if ($count === 0) {
+                $result = substr($string, $startPos, $match[0][1] - $startPos);
+                break;
             }
         }
+
+        if ($count !== 0) {
+            throw new \Exception('Cannot find closing tag "' . $endReg . '"');
+        }
+
+        return $result;
     }
 
     public function getComponentTemplate($componentName, $default = null) {
-
-        if (isset($this->componentTemplates[$componentName])) {
-            return $this->componentTemplates[$componentName];
-        }
-
-        $alias = $this->getComponentAlias($componentName);
-        $dirPath = $this->componentDir . '/' . implode('/', explode('.', $alias));
-        $templatePath = $dirPath . '.html';
-
-        if (!file_exists($templatePath)) {
-            $templatePath = $dirPath . '/template.html';
-            if (!file_exists($templatePath)) {
-                if ($default !== null) {
-                    return $default;
-                }
-                throw new Exception('Component template not found: ' . $templatePath);
-            }
-        }
-
-        $template = file_get_contents($templatePath);
-        $this->componentTemplates[$componentName] = $template;
-        return $template;
+        $comp = $this->loadComponent($componentName);
+        return $comp['template'];
     }
 
     public function getComponentJs($componentName, $default = null) {
-        $alias = $this->getComponentAlias($componentName);
-        $dirPath = $this->componentDir . '/' . implode('/', explode('.', $alias));
-        $templatePath = $dirPath . '/component.js';
-        if (!file_exists($templatePath)) {
-            if ($default !== null) {
-                return $default;
-            }
-            throw new Exception('component.js not found: ' . $templatePath);
-        }
-        return file_get_contents($templatePath);
+        $comp = $this->loadComponent($componentName);
+        return $comp['js'];
     }
 
     /////////////////////////
     // <script> functions
     /////////////////////////
 
-    public function getTemplateScripts() {
+    public function getTemplateScripts($idPrefix = 'vue-template-') {
         $result = '';
-        foreach ($this->componentTemplates as $componentName => $template) {
-            $result .= '<script type="text/template" id="vue-template-' . $componentName . '">' . ($template) . '</script>';
+        foreach ($this->components as $componentName => $component) {
+            $template = $this->getComponentTemplate($componentName);
+            $result .= '<script type="text/template" id="' . $idPrefix . $componentName . '">' . ($template) . '</script>';
         }
         return $result;
     }
 
-    public function getComponentScripts() {
+    public function getJsScripts() {
         $result = '';
         foreach ($this->renderedComponentNames as $componentName => $c) {
-            $result .= $this->getComponentScript($componentName, '');
+            $result .= $this->getJsScript($componentName, '');
         }
         return $result;
     }
 
-    public function getTemplateScript($componentName, $default = null) {
+    public function getTemplateScript($componentName, $default = null, $idPrefix = 'vue-template-') {
         $template = $this->getComponentTemplate($componentName);
-        return '<script type="text/template" id="vue-template-' . $componentName . '">' . ($template) . '</script>';
+        return '<script type="text/template" id="' . $idPrefix . $componentName . '">' . ($template) . '</script>';
     }
 
-    public function getComponentScript($componentName, $default = null) {
-        $code = $this->getComponentJs($componentName, $default);
-        return '<script type="text/javascript">' . ($code) . '</script>';
+    public function getJsScript($componentName, $default = null) {
+        return '<script type="text/javascript">' . $this->getComponentJs($componentName, $default) . '</script>';
     }
 
-    public function getScripts($componentName = null) {
+    public function getScripts($componentName = null, $idPrefix = 'vue-template-') {
         if ($componentName) {
-            return $this->getTemplateScript($componentName, '') . $this->getComponentScript($componentName, '');
+            $result = '';
+            $result .= $this->getTemplateScript($componentName, null, $idPrefix);
+            $result .= $this->getJsScript($componentName);
+            return $result;
         }
-        return $this->getTemplateScripts() . $this->getComponentScripts();
+        return $this->getTemplateScripts($idPrefix) . $this->getJsScripts();
+    }
+
+    public function getVueInstanceScript($el, $componentName, $data) {
+        $html = '<script type="text/javascript">
+    var VuePreApp = new Vue({
+        el: "' . $el . '",
+        data: function(){
+            return { componentData: ' . json_encode($data) . ' };
+        },
+        template: \'<' . $componentName . ' :vue-pre-data="componentData"></' . $componentName . '>\',
+    });
+</script>';
+        return $html;
     }
 
     /////////////////////////
@@ -230,14 +246,10 @@ class VuePre {
         if (strpos($dir, $this->componentDir) !== 0) {
             throw new Exception('scanDirectoryForComponents: directory must be a sub directory from "componentDirectory"');
         }
-        $files = static::recursiveGlob($dir . '/*.html');
+        $files = static::recursiveGlob($dir . '/*.php');
         foreach ($files as $file) {
             $fn = basename($file);
-            if ($fn === 'template.html') {
-                $alias = dirname($file);
-            } else {
-                $alias = substr($file, 0, -strlen('.html'));
-            }
+            $alias = substr($file, 0, -strlen('.php'));
             $name = basename($alias);
             $alias = str_replace('/', '.', substr($alias, strlen($this->componentDir . '/')));
             $this->componentAlias[$name] = $alias;
@@ -256,13 +268,20 @@ class VuePre {
     // Cache
     /////////////////////////
 
-    private function createCachedTemplate($html) {
+    private function createCachedTemplate($html, $slotHtml) {
+
         $dom = $this->parseHtml($html);
+        // $dom = $this->parseHtml('<div>' . $html . '</div>');
 
         $rootNode = $this->getRootNode($dom);
-        $this->handleNode($rootNode);
+        $this->handleNode($rootNode, [
+            'slotHtml' => $slotHtml,
+            'nodeDepth' => 0,
+            'nextSibling' => null,
+        ]);
 
-        $html = $dom->saveHTML($rootNode);
+        //
+        $html = $this->getBodyHtml($dom);
 
         // Replace php tags
         $html = str_replace(static::PHPOPEN, '<?php', $html);
@@ -271,7 +290,7 @@ class VuePre {
         // Revert html escaping within php tags
         $offset = 0;
         while (true) {
-            $found = preg_match('/<\?php(.*)\?>/', $html, $match, PREG_OFFSET_CAPTURE, $offset);
+            $found = preg_match('/<\?php((?s:.)*)\?>/', $html, $match, PREG_OFFSET_CAPTURE, $offset);
             if (!$found) {
                 break;
             }
@@ -303,30 +322,38 @@ class VuePre {
             ${$k} = $v;
         }
 
+        set_error_handler(array($this, 'handleError'));
         ob_start();
         include $file;
         $html = ob_get_contents();
         ob_end_clean();
+        restore_error_handler();
+
+        // $esdfdsf;
 
         return $html;
+    }
+
+    public function handleError($errno, $errstr, $errFile, $errLine) {
+        die('Error parsing "' . htmlspecialchars($this->errorExpression) . '" at line ' . ($this->errorLine) . ': ' . "\n" . $errstr);
     }
 
     /////////////////////////
     // Rendering
     /////////////////////////
 
-    public function renderHtml($template, $data = []) {
+    public function renderHtml($template, $data = [], $slotHtml = '') {
 
         if (empty(trim($template))) {
             return '';
         }
 
-        $hash = md5($template . filemtime(__FILE__) . json_encode($this->componentAlias)); // If package is updated, hash should change
+        $hash = md5($template . $slotHtml . filemtime(__FILE__) . json_encode($this->componentAlias)); // If package is updated, hash should change
         $cacheFile = $this->cacheDir . '/' . $hash . '.php';
 
         // Create cache template
         if (!file_exists($cacheFile) || $this->disableCache) {
-            $html = $this->createCachedTemplate($template);
+            $html = $this->createCachedTemplate($template, $slotHtml);
             file_put_contents($cacheFile, $html);
         }
 
@@ -334,7 +361,7 @@ class VuePre {
         return $this->renderCachedTemplate($cacheFile, $data);
     }
 
-    public function renderComponent($componentName, $data = []) {
+    public function renderComponent($componentName, $data = [], $slotHtml = '') {
 
         if (!$this->componentDir) {
             throw new Exception('Trying to find component, but componentDirectory was not set');
@@ -345,7 +372,7 @@ class VuePre {
         }
 
         // Load settings
-        $this->loadSettings($componentName);
+        $this->loadComponent($componentName);
 
         // Before mount
         if (isset($this->componentBeforeRender[$componentName])) {
@@ -354,10 +381,10 @@ class VuePre {
 
         // Render template
         if ($componentName === 'div') {
-            die('test');
+            die();
         }
         $template = $this->getComponentTemplate($componentName);
-        $html = $this->renderHtml($template, $data);
+        $html = $this->renderHtml($template, $data, $slotHtml);
 
         // Remember
         if (!isset($this->renderedComponentNames[$componentName])) {
@@ -375,6 +402,7 @@ class VuePre {
         // Ensure $html is treated as UTF-8, see https://stackoverflow.com/a/8218649
         if (!$document->loadHTML('<?xml encoding="utf-8" ?>' . $html)) {
             //TODO Test failure
+            throw new \Exception('Error');
         }
         /** @var LibXMLError[] $errors */
         $errors = libxml_get_errors();
@@ -383,6 +411,11 @@ class VuePre {
         libxml_use_internal_errors($internalErrors);
         libxml_disable_entity_loader($entityLoaderDisabled);
         foreach ($errors as $error) {
+            // var_dump($error);
+            // echo '<pre>';
+            // echo htmlspecialchars($html);
+            // echo '</pre>';
+            // exit;
             //TODO html5 tags can fail parsing
             //TODO Throw an exception
         }
@@ -392,24 +425,27 @@ class VuePre {
     private function getRootNode(DOMDocument $document) {
         $rootNodes = $document->documentElement->childNodes->item(0)->childNodes;
         if ($rootNodes->length > 1) {
-            throw new Exception('Template should have only one root node');
+            echo '<h2>Component template should have only one root node</h2>';
+            echo '<pre>' . htmlspecialchars($this->getBodyHtml($document)) . '</pre>';
+            exit;
         }
         return $rootNodes->item(0);
     }
 
     private function handleNode(DOMNode $node, array $options = []) {
-        if (count($options) === 0) {
-            $options = [
-                'nodeDepth' => 0,
-                'nextSibling' => null,
-            ];
-        }
+
         $this->replaceMustacheVariables($node);
-        if (!$this->isTextNode($node)) {
+        if ($this->isElementNode($node)) {
             $this->stripEventHandlers($node);
             $this->handleFor($node, $options);
 
             $this->handleIf($node, $options);
+            if ($this->isRemovedFromTheDom($node)) {return;}
+
+            $this->handleTemplateTag($node, $options);
+            if ($this->isRemovedFromTheDom($node)) {return;}
+
+            $this->handleSlot($node, $options);
             if ($this->isRemovedFromTheDom($node)) {return;}
 
             $this->handleComponent($node, $options);
@@ -423,6 +459,21 @@ class VuePre {
 
             $subOptions = $options;
             $subOptions['nodeDepth'] += 1;
+            // $subNode = $node->firstChild;
+            // $lastKeptNode = null;
+            // while ($subNode) {
+            //     $next = $subNode->nextSibling;
+            //     $subOptions['nextSibling'] = $next;
+            //     $this->handleNode($subNode, $subOptions);
+            //     if (!$this->isRemovedFromTheDom($subNode)) {
+            //         $lastKeptNode = $subNode;
+            //     }
+            //     if ($lastKeptNode) {
+            //         $subNode = $lastKeptNode->nextSibling;
+            //     } else {
+            //         $subNode = $next;
+            //     }
+            // }
             $subNodes = iterator_to_array($node->childNodes);
             foreach ($subNodes as $index => $childNode) {
                 $subOptions['nextSibling'] = isset($subNodes[$index + 1]) ? $subNodes[$index + 1] : null;
@@ -432,9 +483,6 @@ class VuePre {
     }
 
     private function stripEventHandlers(DOMNode $node) {
-        if ($this->isTextNode($node)) {
-            return;
-        }
         foreach ($node->attributes as $attribute) {
             if (strpos($attribute->name, 'v-on:') === 0) {
                 $node->removeAttribute($attribute->name);
@@ -449,7 +497,8 @@ class VuePre {
             preg_match_all($regex, $text, $matches);
             foreach ($matches['expression'] as $index => $expression) {
                 $phpExpr = ConvertJsExpression::convert($expression);
-                $text = str_replace($matches[0][$index], static::PHPOPEN . ' echo htmlspecialchars(' . $phpExpr . '); ' . static::PHPEND, $text);
+                $errorCode = '$this->setErrorHint(' . ($node->getLineNo()) . ', "' . addslashes($expression) . '");';
+                $text = str_replace($matches[0][$index], static::PHPOPEN . ' ' . $errorCode . ' echo htmlspecialchars(' . $phpExpr . '); ' . static::PHPEND, $text);
             }
             if ($text !== $node->nodeValue) {
                 $newNode = $node->ownerDocument->createTextNode($text);
@@ -471,7 +520,8 @@ class VuePre {
 
             if ($name === 'class') {
                 $phpExpr = ConvertJsExpression::convert($attribute->value);
-                $node->setAttribute($name, static::PHPOPEN . ' echo (' . $phpExpr . '); ' . static::PHPEND);
+                $errorCode = '$this->setErrorHint(' . ($node->getLineNo()) . ', "' . addslashes($attribute->value) . '");';
+                $node->setAttribute($name, static::PHPOPEN . ' ' . $errorCode . ' echo (' . $phpExpr . '); ' . static::PHPEND);
             }
 
             if ($node->tagName === 'component' && $name === 'is') {
@@ -485,10 +535,46 @@ class VuePre {
         }
     }
 
-    private function handleComponent(DOMNode $node) {
-        if ($this->isTextNode($node)) {
+    private function handleTemplateTag(DOMNode $node, $options) {
+        $tagName = $node->tagName;
+        if ($tagName !== 'template') {
             return;
         }
+
+        $subNodes = iterator_to_array($node->childNodes);
+        foreach ($subNodes as $index => $childNode) {
+            $node->parentNode->insertBefore($childNode, $node);
+        }
+
+        $newOptions = $options;
+
+        foreach ($subNodes as $index => $childNode) {
+            $newOptions['nextSibling'] = $childNode->nextSibling;
+            $this->handleNode($childNode, $options);
+        }
+
+        $this->removeNode($node);
+    }
+
+    private function handleSlot(DOMNode $node, $options) {
+        $tagName = $node->tagName;
+        if ($tagName !== 'slot') {
+            return;
+        }
+
+        $slotNode = $this->parseHtml($options['slotHtml']);
+        $slotNode = $this->getRootNode($slotNode);
+
+        $subNodes = iterator_to_array($slotNode->childNodes);
+        foreach ($subNodes as $index => $childNode) {
+            $childNode = $node->ownerDocument->importNode($childNode, true);
+            $node->parentNode->insertBefore($childNode, $node);
+        }
+
+        $this->removeNode($node);
+    }
+
+    private function handleComponent(DOMNode $node) {
         $tagName = $node->tagName;
         $this->replaceNodeWithComponent($node, $tagName);
     }
@@ -503,6 +589,8 @@ class VuePre {
             }
             $componentNameExpr = '\'' . $componentName . '\'';
         }
+
+        $errorCode = '$this->setErrorHint(' . ($node->getLineNo()) . ', ' . json_encode($node->ownerDocument->saveHTML($node), JSON_UNESCAPED_SLASHES) . ');';
 
         $data = [];
         foreach (iterator_to_array($node->attributes) as $attribute) {
@@ -519,21 +607,32 @@ class VuePre {
             $data[] = "'$name' => " . $phpExpr;
             $node->removeAttribute($attribute->name);
         }
+
         $dataString = implode(', ', $data);
-        $newNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' echo $this->renderComponent(' . $componentNameExpr . ', [' . $dataString . ']); ' . static::PHPEND);
+
+        $slotHtml = '';
+        $subNodes = iterator_to_array($node->childNodes);
+        foreach ($subNodes as $index => $childNode) {
+            $slotHtml .= $node->ownerDocument->saveHTML($childNode);
+        }
+        $slotHtml = trim($slotHtml);
+        $slotsVar = "''";
+        if (!empty($slotHtml)) {
+            $slotsVar = '$this->renderHtml(' . json_encode('<div>' . $slotHtml . '</div>', JSON_UNESCAPED_SLASHES) . ', $reallyUnrealisticVariableNameForVuePre)';
+        }
+
+        $newNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' ' . $errorCode . ' echo $this->renderComponent(' . $componentNameExpr . ', [' . $dataString . '], ' . $slotsVar . '); ' . static::PHPEND);
         $node->parentNode->replaceChild($newNode, $node);
     }
 
     private function handleIf(DOMNode $node, array $options) {
-        if ($this->isTextNode($node)) {
-            return;
-        }
         if ($node->hasAttribute('v-if')) {
             $conditionString = $node->getAttribute('v-if');
             $node->removeAttribute('v-if');
             $phpExpr = ConvertJsExpression::convert($conditionString);
+            $errorCode = '$this->setErrorHint(' . ($node->getLineNo()) . ', "' . addslashes($conditionString) . '");';
             // Add php code
-            $beforeNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' if($_HANDLEIFRESULT' . ($options["nodeDepth"]) . ' = ' . $phpExpr . ') { ' . static::PHPEND);
+            $beforeNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' ' . $errorCode . ' if($_HANDLEIFRESULT' . ($options["nodeDepth"]) . ' = ' . $phpExpr . ') { ' . static::PHPEND);
             $afterNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' } ' . static::PHPEND);
             $node->parentNode->insertBefore($beforeNode, $node);
             if ($options['nextSibling']) {$node->parentNode->insertBefore($afterNode, $options['nextSibling']);} else { $node->parentNode->appendChild($afterNode);}
@@ -541,8 +640,9 @@ class VuePre {
             $conditionString = $node->getAttribute('v-else-if');
             $node->removeAttribute('v-else-if');
             $phpExpr = ConvertJsExpression::convert($conditionString);
+            $errorCode = '$this->setErrorHint(' . ($node->getLineNo()) . ', "' . addslashes($conditionString) . '");';
             // Add php code
-            $beforeNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' if(!$_HANDLEIFRESULT' . ($options["nodeDepth"]) . ' && $_HANDLEIFRESULT' . ($options["nodeDepth"]) . ' = ' . $phpExpr . ') { ' . static::PHPEND);
+            $beforeNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' ' . $errorCode . ' if(!$_HANDLEIFRESULT' . ($options["nodeDepth"]) . ' && $_HANDLEIFRESULT' . ($options["nodeDepth"]) . ' = ' . $phpExpr . ') { ' . static::PHPEND);
             $afterNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' } ' . static::PHPEND);
             $node->parentNode->insertBefore($beforeNode, $node);
             if ($options['nextSibling']) {$node->parentNode->insertBefore($afterNode, $options['nextSibling']);} else { $node->parentNode->appendChild($afterNode);}
@@ -556,13 +656,17 @@ class VuePre {
         }
     }
     private function handleFor(DOMNode $node, array $options) {
-        if ($this->isTextNode($node)) {
-            return;
-        }
         /** @var DOMElement $node */
         if ($node->hasAttribute('v-for')) {
             list($itemName, $listName) = explode(' in ', $node->getAttribute('v-for'));
             $node->removeAttribute('v-for');
+
+            // Support for item,index in myArray
+            $itemName = trim($itemName, '() ');
+            $itemNameEx = explode(',', $itemName);
+            if (count($itemNameEx) === 2) {
+                $itemName = trim($itemNameEx[1]) . ' => $' . trim($itemNameEx[0]);
+            }
 
             $phpExpr = ConvertJsExpression::convert($listName);
 
@@ -580,9 +684,6 @@ class VuePre {
         }
     }
     private function handleRawHtml(DOMNode $node) {
-        if ($this->isTextNode($node)) {
-            return;
-        }
         /** @var DOMElement $node */
         if ($node->hasAttribute('v-html')) {
             $expr = $node->getAttribute('v-html');
@@ -593,6 +694,15 @@ class VuePre {
         }
     }
 
+    private function getBodyHtml($dom) {
+        $html = '';
+        $subNodes = iterator_to_array($dom->getElementsByTagName('body')->item(0)->childNodes);
+        foreach ($subNodes as $index => $childNode) {
+            $html .= $dom->saveHTML($childNode);
+        }
+        return $html;
+    }
+
     private function removeNode(DOMElement $node) {
         $node->parentNode->removeChild($node);
     }
@@ -601,11 +711,19 @@ class VuePre {
      *
      * @return bool
      */
-    private function isTextNode(DOMNode $node) {
-        return $node instanceof DOMCharacterData;
+    private function isElementNode(DOMNode $node) {
+        return $node->nodeType === 1;
     }
+    // private function isTextNode(DOMNode $node) {
+    //     return $node instanceof DOMCharacterData;
+    // }
     private function isRemovedFromTheDom(DOMNode $node) {
         return $node->parentNode === null;
+    }
+
+    private function setErrorHint($line, $expression) {
+        $this->errorLine = $line;
+        $this->errorExpression = $expression;
     }
 
 }

@@ -16,7 +16,7 @@ class VuePreTest extends TestCase {
     }
 
     private function engine() {
-        $vue = new \LorenzV\VuePre\VuePre();
+        $vue = new \VuePre\Engine();
         $vue->devMode = true;
         $vue->setCacheDirectory(__DIR__ . '/cache');
         $vue->setComponentDirectory(__DIR__ . '/templates');
