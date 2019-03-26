@@ -30,6 +30,8 @@ class Engine {
     private $errorLine = null;
     private $errorExpression = null;
 
+    private $slotHtml = [];
+
     const PHPOPEN = '__VUEPREPHPTAG__';
     const PHPEND = '__VUEPREPHPENDTAG__';
 
@@ -268,14 +270,13 @@ class Engine {
     // Cache
     /////////////////////////
 
-    private function createCachedTemplate($html, $slotHtml) {
+    private function createCachedTemplate($html) {
 
         $dom = $this->parseHtml($html);
         // $dom = $this->parseHtml('<div>' . $html . '</div>');
 
         $rootNode = $this->getRootNode($dom);
         $this->handleNode($rootNode, [
-            'slotHtml' => $slotHtml,
             'nodeDepth' => 0,
             'nextSibling' => null,
         ]);
@@ -335,12 +336,20 @@ class Engine {
     }
 
     public function handleError($errno, $errstr, $errFile, $errLine) {
-        die('Error parsing "' . htmlspecialchars($this->errorExpression) . '" at line ' . ($this->errorLine) . ': ' . "\n" . $errstr);
+        echo '<pre>';
+        echo 'Error parsing "' . htmlspecialchars($this->errorExpression) . '" at line ' . ($this->errorLine) . ': ' . $errstr . "\n";
+        echo 'Error at: line ' . $errLine . ' in ' . $errFile;
+        echo '</pre>';
+        exit;
     }
 
     /////////////////////////
     // Rendering
     /////////////////////////
+
+    public function getSlotHtml($name = '_DEFAULTSLOT_') {
+        return isset($this->slotHtml[$name]) ? $this->slotHtml[$name] : '';
+    }
 
     public function renderHtml($template, $data = [], $slotHtml = '') {
 
@@ -348,14 +357,16 @@ class Engine {
             return '';
         }
 
-        $hash = md5($template . $slotHtml . filemtime(__FILE__) . json_encode($this->componentAlias)); // If package is updated, hash should change
+        $hash = md5($template . filemtime(__FILE__) . json_encode($this->componentAlias)); // If package is updated, hash should change
         $cacheFile = $this->cacheDir . '/' . $hash . '.php';
 
         // Create cache template
         if (!file_exists($cacheFile) || $this->disableCache) {
-            $html = $this->createCachedTemplate($template, $slotHtml);
+            $html = $this->createCachedTemplate($template);
             file_put_contents($cacheFile, $html);
         }
+
+        $this->slotHtml = ['_DEFAULTSLOT_' => $slotHtml];
 
         // Render cached template
         return $this->renderCachedTemplate($cacheFile, $data);
@@ -562,15 +573,8 @@ class Engine {
             return;
         }
 
-        $slotNode = $this->parseHtml($options['slotHtml']);
-        $slotNode = $this->getRootNode($slotNode);
-
-        $subNodes = iterator_to_array($slotNode->childNodes);
-        foreach ($subNodes as $index => $childNode) {
-            $childNode = $node->ownerDocument->importNode($childNode, true);
-            $node->parentNode->insertBefore($childNode, $node);
-        }
-
+        $newNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' echo $this->getSlotHtml(); ' . static::PHPEND);
+        $node->parentNode->insertBefore($newNode, $node);
         $this->removeNode($node);
     }
 
