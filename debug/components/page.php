@@ -38,6 +38,7 @@
             <div>
                 <span>{{ myVar }}</span><span>{{ myVar }}</span>
             </div>
+            <p>Rererererererer</p>
         </mypartial>
     </layout>
 </template>

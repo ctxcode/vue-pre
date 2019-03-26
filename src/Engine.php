@@ -270,19 +270,27 @@ class Engine {
     // Cache
     /////////////////////////
 
-    private function createCachedTemplate($html) {
+    private function createCachedTemplate($html, $options) {
 
-        $dom = $this->parseHtml($html);
-        // $dom = $this->parseHtml('<div>' . $html . '</div>');
+        if (!isset($options['isComponent'])) {
+            $options['isComponent'] = false;
+        }
 
-        $rootNode = $this->getRootNode($dom);
+        if ($options['isComponent']) {
+            $dom = $this->parseHtml($html);
+            // Check for single rootNode
+            $this->getRootNode($dom);
+        }
+
+        $dom = $this->parseHtml('<div id="_VuePreRootElement_">' . $html . '</div>');
+        $rootNode = $dom->getElementById('_VuePreRootElement_');
         $this->handleNode($rootNode, [
             'nodeDepth' => 0,
             'nextSibling' => null,
         ]);
 
         //
-        $html = $this->getBodyHtml($dom);
+        $html = $this->getNodeInnerHtml($rootNode);
 
         // Replace php tags
         $html = str_replace(static::PHPOPEN, '<?php', $html);
@@ -362,7 +370,7 @@ class Engine {
 
         // Create cache template
         if (!file_exists($cacheFile) || $this->disableCache) {
-            $html = $this->createCachedTemplate($template);
+            $html = $this->createCachedTemplate($template, $options);
             file_put_contents($cacheFile, $html);
         }
 
@@ -380,7 +388,7 @@ class Engine {
         return $this->renderCachedTemplate($cacheFile, $data);
     }
 
-    public function renderComponent($componentName, $data = [], $slotHtml = '') {
+    public function renderComponent($componentName, $data = [], $options = []) {
 
         if (!$this->componentDir) {
             throw new Exception('Trying to find component, but componentDirectory was not set');
@@ -403,7 +411,8 @@ class Engine {
             die();
         }
         $template = $this->getComponentTemplate($componentName);
-        $html = $this->renderHtml($template, $data, $slotHtml);
+        $options['isComponent'] = true;
+        $html = $this->renderHtml($template, $data, $options);
 
         // Remember
         if (!isset($this->renderedComponentNames[$componentName])) {
@@ -655,10 +664,10 @@ class Engine {
         $options = [];
         $slotVar = '';
         if (!empty($slot)) {
-            $slotVar = '$this->renderHtml(' . json_encode('<div>' . $slot . '</div>', JSON_UNESCAPED_SLASHES) . ', $reallyUnrealisticVariableNameForVuePre)';
+            $slotVar = '$this->renderHtml(' . json_encode($slot, JSON_UNESCAPED_SLASHES) . ', $reallyUnrealisticVariableNameForVuePre)';
         }
         foreach ($slots as $name => $html) {
-            $options[] = '\'' . $name . '\'=>$this->renderHtml(' . json_encode('<div>' . $html . '</div>', JSON_UNESCAPED_SLASHES) . ', $reallyUnrealisticVariableNameForVuePre)';
+            $options[] = '\'' . $name . '\'=>$this->renderHtml(' . json_encode($html, JSON_UNESCAPED_SLASHES) . ', $reallyUnrealisticVariableNameForVuePre)';
         }
         $optionsVar = "['slot'=>" . $slotVar . ", 'slots'=>[" . implode(',', $options) . "]]";
 
@@ -735,13 +744,17 @@ class Engine {
         }
     }
 
-    private function getBodyHtml($dom) {
+    private function getNodeInnerHtml($node) {
         $html = '';
-        $subNodes = iterator_to_array($dom->getElementsByTagName('body')->item(0)->childNodes);
+        $subNodes = iterator_to_array($node->childNodes);
         foreach ($subNodes as $index => $childNode) {
-            $html .= $dom->saveHTML($childNode);
+            $html .= $node->ownerDocument->saveHTML($childNode);
         }
         return $html;
+    }
+
+    private function getBodyHtml($dom) {
+        return $this->getNodeInnerHtml($dom->getElementsByTagName('body')->item(0));
     }
 
     private function removeNode(DOMElement $node) {
