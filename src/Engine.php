@@ -30,6 +30,8 @@ class Engine {
     private $errorLine = null;
     private $errorExpression = null;
 
+    private $slotHtml = [];
+
     const PHPOPEN = '__VUEPREPHPTAG__';
     const PHPEND = '__VUEPREPHPENDTAG__';
 
@@ -268,20 +270,27 @@ class Engine {
     // Cache
     /////////////////////////
 
-    private function createCachedTemplate($html, $slotHtml) {
+    private function createCachedTemplate($html, $options) {
 
-        $dom = $this->parseHtml($html);
-        // $dom = $this->parseHtml('<div>' . $html . '</div>');
+        if (!isset($options['isComponent'])) {
+            $options['isComponent'] = false;
+        }
 
-        $rootNode = $this->getRootNode($dom);
+        if ($options['isComponent']) {
+            $dom = $this->parseHtml($html);
+            // Check for single rootNode
+            $this->getRootNode($dom);
+        }
+
+        $dom = $this->parseHtml('<div id="_VuePreRootElement_">' . $html . '</div>');
+        $rootNode = $dom->getElementById('_VuePreRootElement_');
         $this->handleNode($rootNode, [
-            'slotHtml' => $slotHtml,
             'nodeDepth' => 0,
             'nextSibling' => null,
         ]);
 
         //
-        $html = $this->getBodyHtml($dom);
+        $html = $this->getNodeInnerHtml($rootNode);
 
         // Replace php tags
         $html = str_replace(static::PHPOPEN, '<?php', $html);
@@ -335,33 +344,51 @@ class Engine {
     }
 
     public function handleError($errno, $errstr, $errFile, $errLine) {
-        die('Error parsing "' . htmlspecialchars($this->errorExpression) . '" at line ' . ($this->errorLine) . ': ' . "\n" . $errstr);
+        echo '<pre>';
+        echo 'Error parsing "' . htmlspecialchars($this->errorExpression) . '" at line ' . ($this->errorLine) . ': ' . $errstr . "\n";
+        echo 'Error at: line ' . $errLine . ' in ' . $errFile;
+        echo '</pre>';
+        exit;
     }
 
     /////////////////////////
     // Rendering
     /////////////////////////
 
-    public function renderHtml($template, $data = [], $slotHtml = '') {
+    public function getSlotHtml($name = '_DEFAULTSLOT_') {
+        return isset($this->slotHtml[$name]) ? $this->slotHtml[$name] : '';
+    }
+
+    public function renderHtml($template, $data = [], $options = []) {
 
         if (empty(trim($template))) {
             return '';
         }
 
-        $hash = md5($template . $slotHtml . filemtime(__FILE__) . json_encode($this->componentAlias)); // If package is updated, hash should change
+        $hash = md5($template . filemtime(__FILE__) . json_encode($this->componentAlias)); // If package is updated, hash should change
         $cacheFile = $this->cacheDir . '/' . $hash . '.php';
 
         // Create cache template
         if (!file_exists($cacheFile) || $this->disableCache) {
-            $html = $this->createCachedTemplate($template, $slotHtml);
+            $html = $this->createCachedTemplate($template, $options);
             file_put_contents($cacheFile, $html);
+        }
+
+        if (isset($options['slot'])) {
+            $this->slotHtml['_DEFAULTSLOT_'] = $options['slot'];
+        }
+
+        if (isset($options['slots'])) {
+            foreach ($options['slots'] as $name => $html) {
+                $this->slotHtml[$name] = $html;
+            }
         }
 
         // Render cached template
         return $this->renderCachedTemplate($cacheFile, $data);
     }
 
-    public function renderComponent($componentName, $data = [], $slotHtml = '') {
+    public function renderComponent($componentName, $data = [], $options = []) {
 
         if (!$this->componentDir) {
             throw new Exception('Trying to find component, but componentDirectory was not set');
@@ -384,7 +411,8 @@ class Engine {
             die();
         }
         $template = $this->getComponentTemplate($componentName);
-        $html = $this->renderHtml($template, $data, $slotHtml);
+        $options['isComponent'] = true;
+        $html = $this->renderHtml($template, $data, $options);
 
         // Remember
         if (!isset($this->renderedComponentNames[$componentName])) {
@@ -562,15 +590,13 @@ class Engine {
             return;
         }
 
-        $slotNode = $this->parseHtml($options['slotHtml']);
-        $slotNode = $this->getRootNode($slotNode);
-
-        $subNodes = iterator_to_array($slotNode->childNodes);
-        foreach ($subNodes as $index => $childNode) {
-            $childNode = $node->ownerDocument->importNode($childNode, true);
-            $node->parentNode->insertBefore($childNode, $node);
+        $slotName = '';
+        if ($node->hasAttribute('name')) {
+            $slotName = '"' . $node->getAttribute('name') . '"';
         }
 
+        $newNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' echo $this->getSlotHtml(' . $slotName . '); ' . static::PHPEND);
+        $node->parentNode->insertBefore($newNode, $node);
         $this->removeNode($node);
     }
 
@@ -610,18 +636,42 @@ class Engine {
 
         $dataString = implode(', ', $data);
 
-        $slotHtml = '';
+        $slot = '';
+        $slots = [];
         $subNodes = iterator_to_array($node->childNodes);
         foreach ($subNodes as $index => $childNode) {
-            $slotHtml .= $node->ownerDocument->saveHTML($childNode);
-        }
-        $slotHtml = trim($slotHtml);
-        $slotsVar = "''";
-        if (!empty($slotHtml)) {
-            $slotsVar = '$this->renderHtml(' . json_encode('<div>' . $slotHtml . '</div>', JSON_UNESCAPED_SLASHES) . ', $reallyUnrealisticVariableNameForVuePre)';
-        }
+            $slotName = null;
+            $slotHtml = $node->ownerDocument->saveHTML($childNode);
 
-        $newNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' ' . $errorCode . ' echo $this->renderComponent(' . $componentNameExpr . ', [' . $dataString . '], ' . $slotsVar . '); ' . static::PHPEND);
+            if ($childNode->nodeType === 1) {
+                foreach ($childNode->attributes as $attribute) {
+                    if (strpos($attribute->name, 'v-slot:') === 0) {
+                        $slotName = substr($attribute->name, strlen('v-slot:'));
+                    }
+                }
+            }
+
+            $slotHtml = trim($slotHtml);
+            if (!$slotName) {
+                $slot .= $slotHtml;
+            } else {
+                if (!isset($slots[$slotName])) {
+                    $slots[$slotName] = '';
+                }
+                $slots[$slotName] .= $slotHtml;
+            }
+        }
+        $options = [];
+        $slotVar = '';
+        if (!empty($slot)) {
+            $slotVar = '$this->renderHtml(' . json_encode($slot, JSON_UNESCAPED_SLASHES) . ', $reallyUnrealisticVariableNameForVuePre)';
+        }
+        foreach ($slots as $name => $html) {
+            $options[] = '\'' . $name . '\'=>$this->renderHtml(' . json_encode($html, JSON_UNESCAPED_SLASHES) . ', $reallyUnrealisticVariableNameForVuePre)';
+        }
+        $optionsVar = "['slot'=>" . $slotVar . ", 'slots'=>[" . implode(',', $options) . "]]";
+
+        $newNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' ' . $errorCode . ' echo $this->renderComponent(' . $componentNameExpr . ', [' . $dataString . '], ' . $optionsVar . '); ' . static::PHPEND);
         $node->parentNode->replaceChild($newNode, $node);
     }
 
@@ -694,13 +744,17 @@ class Engine {
         }
     }
 
-    private function getBodyHtml($dom) {
+    private function getNodeInnerHtml($node) {
         $html = '';
-        $subNodes = iterator_to_array($dom->getElementsByTagName('body')->item(0)->childNodes);
+        $subNodes = iterator_to_array($node->childNodes);
         foreach ($subNodes as $index => $childNode) {
-            $html .= $dom->saveHTML($childNode);
+            $html .= $node->ownerDocument->saveHTML($childNode);
         }
         return $html;
+    }
+
+    private function getBodyHtml($dom) {
+        return $this->getNodeInnerHtml($dom->getElementsByTagName('body')->item(0));
     }
 
     private function removeNode(DOMElement $node) {

@@ -12,7 +12,15 @@ return [
     <div>
         <div v-html="title"></div>
 
+        <slot name="header"></slot>
+
+        <div>-------------</div>
+
         <slot></slot>
+
+        <div>-------------</div>
+
+        <slot name="header"></slot>
 
         <div v-if="showThis">Show this</div>
         <div v-else>Not this</div>

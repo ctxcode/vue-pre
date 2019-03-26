@@ -32,9 +32,13 @@
 
         <!-- Components + slots -->
         <mypartial :title="title">
+            <template v-slot:header>
+                <h1>Here might be a page title</h1>
+            </template>
             <div>
                 <span>{{ myVar }}</span><span>{{ myVar }}</span>
             </div>
+            <p>Rererererererer</p>
         </mypartial>
     </layout>
 </template>
