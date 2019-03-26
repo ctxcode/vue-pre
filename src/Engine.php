@@ -351,7 +351,7 @@ class Engine {
         return isset($this->slotHtml[$name]) ? $this->slotHtml[$name] : '';
     }
 
-    public function renderHtml($template, $data = [], $slotHtml = '') {
+    public function renderHtml($template, $data = [], $options = []) {
 
         if (empty(trim($template))) {
             return '';
@@ -366,7 +366,15 @@ class Engine {
             file_put_contents($cacheFile, $html);
         }
 
-        $this->slotHtml = ['_DEFAULTSLOT_' => $slotHtml];
+        if (isset($options['slot'])) {
+            $this->slotHtml['_DEFAULTSLOT_'] = $options['slot'];
+        }
+
+        if (isset($options['slots'])) {
+            foreach ($options['slots'] as $name => $html) {
+                $this->slotHtml[$name] = $html;
+            }
+        }
 
         // Render cached template
         return $this->renderCachedTemplate($cacheFile, $data);
@@ -573,7 +581,12 @@ class Engine {
             return;
         }
 
-        $newNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' echo $this->getSlotHtml(); ' . static::PHPEND);
+        $slotName = '';
+        if ($node->hasAttribute('name')) {
+            $slotName = '"' . $node->getAttribute('name') . '"';
+        }
+
+        $newNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' echo $this->getSlotHtml(' . $slotName . '); ' . static::PHPEND);
         $node->parentNode->insertBefore($newNode, $node);
         $this->removeNode($node);
     }
@@ -614,18 +627,42 @@ class Engine {
 
         $dataString = implode(', ', $data);
 
-        $slotHtml = '';
+        $slot = '';
+        $slots = [];
         $subNodes = iterator_to_array($node->childNodes);
         foreach ($subNodes as $index => $childNode) {
-            $slotHtml .= $node->ownerDocument->saveHTML($childNode);
-        }
-        $slotHtml = trim($slotHtml);
-        $slotsVar = "''";
-        if (!empty($slotHtml)) {
-            $slotsVar = '$this->renderHtml(' . json_encode('<div>' . $slotHtml . '</div>', JSON_UNESCAPED_SLASHES) . ', $reallyUnrealisticVariableNameForVuePre)';
-        }
+            $slotName = null;
+            $slotHtml = $node->ownerDocument->saveHTML($childNode);
 
-        $newNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' ' . $errorCode . ' echo $this->renderComponent(' . $componentNameExpr . ', [' . $dataString . '], ' . $slotsVar . '); ' . static::PHPEND);
+            if ($childNode->nodeType === 1) {
+                foreach ($childNode->attributes as $attribute) {
+                    if (strpos($attribute->name, 'v-slot:') === 0) {
+                        $slotName = substr($attribute->name, strlen('v-slot:'));
+                    }
+                }
+            }
+
+            $slotHtml = trim($slotHtml);
+            if (!$slotName) {
+                $slot .= $slotHtml;
+            } else {
+                if (!isset($slots[$slotName])) {
+                    $slots[$slotName] = '';
+                }
+                $slots[$slotName] .= $slotHtml;
+            }
+        }
+        $options = [];
+        $slotVar = '';
+        if (!empty($slot)) {
+            $slotVar = '$this->renderHtml(' . json_encode('<div>' . $slot . '</div>', JSON_UNESCAPED_SLASHES) . ', $reallyUnrealisticVariableNameForVuePre)';
+        }
+        foreach ($slots as $name => $html) {
+            $options[] = '\'' . $name . '\'=>$this->renderHtml(' . json_encode('<div>' . $html . '</div>', JSON_UNESCAPED_SLASHES) . ', $reallyUnrealisticVariableNameForVuePre)';
+        }
+        $optionsVar = "['slot'=>" . $slotVar . ", 'slots'=>[" . implode(',', $options) . "]]";
+
+        $newNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' ' . $errorCode . ' echo $this->renderComponent(' . $componentNameExpr . ', [' . $dataString . '], ' . $optionsVar . '); ' . static::PHPEND);
         $node->parentNode->replaceChild($newNode, $node);
     }
 
