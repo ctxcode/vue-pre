@@ -30,6 +30,8 @@
 
         <div v-if="toggle">TEST TOGGLE</div>
 
+        <component :is="dynCompo" :title="title"></component>
+
         <!-- Components + slots -->
         <mypartial :title="title">
             <template v-slot:header>

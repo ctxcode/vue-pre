@@ -16,6 +16,7 @@ $data = [
     'myObject' => (object) [
         'myProp' => 'World',
     ],
+    'dynCompo' => 'mypartial',
 ];
 
 $vue = new \VuePre\Engine();

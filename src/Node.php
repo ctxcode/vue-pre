@@ -51,8 +51,8 @@ class Node {
             $this->handleIf($node, $options);
             $this->handleTemplateTag($node, $options);
             $this->handleSlot($node, $options);
-            $this->handleComponent($node, $options);
             $this->handleAttributeBinding($node);
+            $this->handleComponent($node, $options);
             $this->handleRawHtml($node);
 
             $subNodes = iterator_to_array($node->childNodes);
@@ -149,24 +149,29 @@ class Node {
                 continue;
             }
 
+            // Remove attribute
+            $node->removeAttribute($attribute->name);
+
+            // Handle attribute
             $name = substr($attribute->name, 1);
-            $removeAttrs[] = $attribute->name;
 
             if ($name === 'class') {
                 $currentClass = $node->getAttribute('class');
                 $node->setAttribute($name, $currentClass . ' _VUEPRE_CLASS_');
                 $phpExpr = ConvertJsExpression::convert($attribute->value);
                 $this->settings->class = $phpExpr;
+                continue;
             }
 
             if ($node->tagName === 'component' && $name === 'is') {
                 $phpExpr = ConvertJsExpression::convert($attribute->value);
                 $this->settings->isComponent = $phpExpr;
-                return;
+                continue;
             }
-        }
-        foreach ($removeAttrs as $attr) {
-            $node->removeAttribute($attr);
+
+            // Add to bindings
+            $phpExpr = ConvertJsExpression::convert($attribute->value);
+            $this->settings->bindedValues[$name] = $phpExpr;
         }
     }
 
@@ -197,26 +202,12 @@ class Node {
 
         $componentName = $node->tagName;
 
-        if (!in_array($componentName, $this->template->knownComponentNames, true)) {
+        if (!$this->settings->isComponent && !in_array($componentName, $this->template->knownComponentNames, true)) {
             return;
         }
-        $componentNameExpr = '\'' . $componentName . '\'';
-        $this->settings->isComponent = $componentNameExpr;
-
-        $data = [];
-        foreach (iterator_to_array($node->attributes) as $attribute) {
-            if (!preg_match('/^:[\w-]+$/', $attribute->name)) {
-                continue;
-            }
-
-            $name = substr($attribute->name, 1);
-            if ($name === 'class') {
-                continue;
-            }
-
-            $phpExpr = ConvertJsExpression::convert($attribute->value);
-            $this->settings->bindedValues[$name] = $phpExpr;
-            $node->removeAttribute($attribute->name);
+        if (!$this->settings->isComponent) {
+            $componentNameExpr = '\'' . $componentName . '\'';
+            $this->settings->isComponent = $componentNameExpr;
         }
 
         $slotNodes = (object) [];
