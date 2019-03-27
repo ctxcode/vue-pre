@@ -3,6 +3,8 @@
     <layout :layout-data="layoutData">
         <!-- output && expressions -->
         <div>{{ 420 }}</div>
+        <div>{{ "'" }}</div>
+        <div>{{ '"' }}</div>
         <div>{{ (1 > 2) ? '' : 'o' }}</div>
         <div>{{ 'four-twenty' }}</div>
         <div>{{ myVar }}</div>

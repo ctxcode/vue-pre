@@ -40,6 +40,7 @@ class ConvertJsExpression {
         $numReg = '-?\d+\.?\d*';
         $boolReg = '(?:true|false|null)';
         $strReg = "'[^']*'";
+        $strDqReg = '"[^"]*"';
         $varReg = '\!?[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+|\g<arrReg>)*';
         $opReg = ' *(?:===|==|<=|=>|<|>|!==|!=|\+|-|\/|\*|&&|\|\|) *';
 
@@ -51,19 +52,22 @@ class ConvertJsExpression {
         $funcReg = "\!?[a-zA-Z_][a-zA-Z0-9_]*$exprReg";
         $funcRegGroups = "\!?([a-zA-Z_][a-zA-Z0-9_]*)($exprReg)";
 
-        $arrOrStrReg = "(?:$varReg|$strReg|$arrReg|$objReg|$exprReg|$funcReg)";
+        $arrOrStrReg = "(?:$varReg|$strReg|$strDqReg|$arrReg|$objReg|$exprReg|$funcReg)";
 
         $indexOfReg = "$arrOrStrReg\.indexOf$exprReg";
         $indexOfRegGroups = "($arrOrStrReg)\.indexOf($exprReg)";
         $lengthReg = "$arrOrStrReg\.length";
         $lengthRegGroups = "($arrOrStrReg)\.length";
 
-        $valueReg = "(?:$numReg|$strReg|$boolReg|$lengthReg|$varReg|$arrReg|$objReg|$exprReg|$indexOfReg|$funcReg)";
+        $valueReg = "(?:$numReg|$strReg|$strDqReg|$boolReg|$lengthReg|$varReg|$arrReg|$objReg|$exprReg|$indexOfReg|$funcReg)";
 
         if ($this->match($numReg, $expr, $match)) {
             return $expr;
         }
         if ($this->match($strReg, $expr, $match)) {
+            return $expr;
+        }
+        if ($this->match($strDqReg, $expr, $match)) {
             return $expr;
         }
         if ($this->match($boolReg, $expr, $match)) {
