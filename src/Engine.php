@@ -3,9 +3,6 @@
 namespace VuePre;
 
 use DOMDocument;
-use DOMElement;
-use DOMNode;
-use DOMText;
 use Exception;
 use LibXMLError;
 
@@ -16,7 +13,7 @@ class Engine {
     private $componentDir = null;
     private $cacheDir = null;
 
-    private $componentAlias = [];
+    public $componentAlias = [];
     private $components = [];
     private $methods = [];
     private $renderedComponentNames = [];
@@ -32,8 +29,7 @@ class Engine {
 
     private $slotHtml = [];
 
-    const PHPOPEN = '__VUEPREPHPTAG__';
-    const PHPEND = '__VUEPREPHPENDTAG__';
+    private static $fileCache = [];
 
     public function __construct() {
     }
@@ -284,61 +280,31 @@ class Engine {
 
         $dom = $this->parseHtml('<div id="_VuePreRootElement_">' . $html . '</div>');
         $rootNode = $dom->getElementById('_VuePreRootElement_');
-        $this->handleNode($rootNode, [
-            'nodeDepth' => 0,
-            'nextSibling' => null,
-        ]);
 
-        //
-        $html = $this->getNodeInnerHtml($rootNode);
+        $template = new CacheTemplate($this);
+        $template->knownComponentNames = array_keys($this->componentAlias);
 
-        // Replace php tags
-        $html = str_replace(static::PHPOPEN, '<?php', $html);
-        $html = str_replace(static::PHPEND, '?>', $html);
-
-        // Revert html escaping within php tags
-        $offset = 0;
-        while (true) {
-            $found = preg_match('/<\?php((?s:.)*)\?>/', $html, $match, PREG_OFFSET_CAPTURE, $offset);
-            if (!$found) {
-                break;
-            }
-            $code = $match[1][0];
-            $code = htmlspecialchars_decode($code);
-            $code = '<?php' . $code . '?>';
-            $html = substr_replace($html, $code, $match[0][1], strlen($match[0][0]));
-
-            $offset = $match[0][1] + 1;
+        foreach ($rootNode->childNodes as $k => $childNode) {
+            $template->addDomNode($childNode);
         }
 
-        return $html;
+        return json_encode($template->export());
     }
 
-    // reallyUnrealisticVariableNameForVuePre is the variable that holds the template data
-    private function renderCachedTemplate($file, $reallyUnrealisticVariableNameForVuePre) {
-
-        foreach ($this->methods as $k => $v) {
-            ${$k} = $v;
-        }
-
-        foreach ($reallyUnrealisticVariableNameForVuePre as $k => $v) {
-            if ($k === 'this') {
-                throw new Exception('Variable "this" is not allowed');
-            }
-            if (isset(${$k})) {
-                throw new Exception('Variable "' . $k . '" is already the name of a method');
-            }
-            ${$k} = $v;
-        }
+    private function renderCachedTemplate($file, $data) {
 
         set_error_handler(array($this, 'handleError'));
-        ob_start();
-        include $file;
-        $html = ob_get_contents();
-        ob_end_clean();
-        restore_error_handler();
 
-        // $esdfdsf;
+        if (!isset(static::$fileCache[$file])) {
+            static::$fileCache[$file] = file_get_contents($file);
+        }
+        $exportData = json_decode(static::$fileCache[$file]);
+
+        $template = new CacheTemplate($this);
+        $template->import($exportData);
+        $html = $template->render($data);
+
+        restore_error_handler();
 
         return $html;
     }
@@ -372,10 +338,6 @@ class Engine {
         if (!file_exists($cacheFile) || $this->disableCache) {
             $html = $this->createCachedTemplate($template, $options);
             file_put_contents($cacheFile, $html);
-        }
-
-        if (isset($options['slot'])) {
-            $this->slotHtml['_DEFAULTSLOT_'] = $options['slot'];
         }
 
         if (isset($options['slots'])) {
@@ -458,321 +420,6 @@ class Engine {
             exit;
         }
         return $rootNodes->item(0);
-    }
-
-    private function handleNode(DOMNode $node, array $options = []) {
-
-        $this->replaceMustacheVariables($node);
-        if ($this->isElementNode($node)) {
-            $this->stripEventHandlers($node);
-            $this->handleFor($node, $options);
-
-            $this->handleIf($node, $options);
-            if ($this->isRemovedFromTheDom($node)) {return;}
-
-            $this->handleTemplateTag($node, $options);
-            if ($this->isRemovedFromTheDom($node)) {return;}
-
-            $this->handleSlot($node, $options);
-            if ($this->isRemovedFromTheDom($node)) {return;}
-
-            $this->handleComponent($node, $options);
-            if ($this->isRemovedFromTheDom($node)) {return;}
-
-            $this->handleAttributeBinding($node);
-            if ($this->isRemovedFromTheDom($node)) {return;}
-
-            $this->handleRawHtml($node);
-            if ($this->isRemovedFromTheDom($node)) {return;}
-
-            $subOptions = $options;
-            $subOptions['nodeDepth'] += 1;
-            // $subNode = $node->firstChild;
-            // $lastKeptNode = null;
-            // while ($subNode) {
-            //     $next = $subNode->nextSibling;
-            //     $subOptions['nextSibling'] = $next;
-            //     $this->handleNode($subNode, $subOptions);
-            //     if (!$this->isRemovedFromTheDom($subNode)) {
-            //         $lastKeptNode = $subNode;
-            //     }
-            //     if ($lastKeptNode) {
-            //         $subNode = $lastKeptNode->nextSibling;
-            //     } else {
-            //         $subNode = $next;
-            //     }
-            // }
-            $subNodes = iterator_to_array($node->childNodes);
-            foreach ($subNodes as $index => $childNode) {
-                $subOptions['nextSibling'] = isset($subNodes[$index + 1]) ? $subNodes[$index + 1] : null;
-                $this->handleNode($childNode, $subOptions);
-            }
-        }
-    }
-
-    private function stripEventHandlers(DOMNode $node) {
-        foreach ($node->attributes as $attribute) {
-            if (strpos($attribute->name, 'v-on:') === 0) {
-                $node->removeAttribute($attribute->name);
-            }
-        }
-    }
-
-    private function replaceMustacheVariables(DOMNode $node) {
-        if ($node instanceof DOMText) {
-            $text = $node->nodeValue;
-            $regex = '/\{\{(?P<expression>.*?)\}\}/x';
-            preg_match_all($regex, $text, $matches);
-            foreach ($matches['expression'] as $index => $expression) {
-                $phpExpr = ConvertJsExpression::convert($expression);
-                $errorCode = '$this->setErrorHint(' . ($node->getLineNo()) . ', "' . addslashes($expression) . '");';
-                $text = str_replace($matches[0][$index], static::PHPOPEN . ' ' . $errorCode . ' echo htmlspecialchars(' . $phpExpr . '); ' . static::PHPEND, $text);
-            }
-            if ($text !== $node->nodeValue) {
-                $newNode = $node->ownerDocument->createTextNode($text);
-                $node->parentNode->replaceChild($newNode, $node);
-            }
-        }
-    }
-
-    private function handleAttributeBinding(DOMElement $node) {
-        $removeAttrs = [];
-        foreach (iterator_to_array($node->attributes) as $attribute) {
-
-            if (!preg_match('/^:[\w-]+$/', $attribute->name)) {
-                continue;
-            }
-
-            $name = substr($attribute->name, 1);
-            $removeAttrs[] = $attribute->name;
-
-            if ($name === 'class') {
-                $phpExpr = ConvertJsExpression::convert($attribute->value);
-                $errorCode = '$this->setErrorHint(' . ($node->getLineNo()) . ', "' . addslashes($attribute->value) . '");';
-                $node->setAttribute($name, static::PHPOPEN . ' ' . $errorCode . ' echo (' . $phpExpr . '); ' . static::PHPEND);
-            }
-
-            if ($node->tagName === 'component' && $name === 'is') {
-                $phpExpr = ConvertJsExpression::convert($attribute->value);
-                $this->replaceNodeWithComponent($node, $phpExpr, true);
-                return;
-            }
-        }
-        foreach ($removeAttrs as $attr) {
-            $node->removeAttribute($attr);
-        }
-    }
-
-    private function handleTemplateTag(DOMNode $node, $options) {
-        $tagName = $node->tagName;
-        if ($tagName !== 'template') {
-            return;
-        }
-
-        $subNodes = iterator_to_array($node->childNodes);
-        foreach ($subNodes as $index => $childNode) {
-            $node->parentNode->insertBefore($childNode, $node);
-        }
-
-        $newOptions = $options;
-
-        foreach ($subNodes as $index => $childNode) {
-            $newOptions['nextSibling'] = $childNode->nextSibling;
-            $this->handleNode($childNode, $options);
-        }
-
-        $this->removeNode($node);
-    }
-
-    private function handleSlot(DOMNode $node, $options) {
-        $tagName = $node->tagName;
-        if ($tagName !== 'slot') {
-            return;
-        }
-
-        $slotName = '';
-        if ($node->hasAttribute('name')) {
-            $slotName = '"' . $node->getAttribute('name') . '"';
-        }
-
-        $newNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' echo $this->getSlotHtml(' . $slotName . '); ' . static::PHPEND);
-        $node->parentNode->insertBefore($newNode, $node);
-        $this->removeNode($node);
-    }
-
-    private function handleComponent(DOMNode $node) {
-        $tagName = $node->tagName;
-        $this->replaceNodeWithComponent($node, $tagName);
-    }
-
-    private function replaceNodeWithComponent(DOMNode $node, $componentName, $dynamicComponent = false) {
-
-        if ($dynamicComponent) {
-            $componentNameExpr = $componentName;
-        } else {
-            if (!isset($this->componentAlias[$componentName])) {
-                return;
-            }
-            $componentNameExpr = '\'' . $componentName . '\'';
-        }
-
-        $errorCode = '$this->setErrorHint(' . ($node->getLineNo()) . ', ' . json_encode($node->ownerDocument->saveHTML($node), JSON_UNESCAPED_SLASHES) . ');';
-
-        $data = [];
-        foreach (iterator_to_array($node->attributes) as $attribute) {
-            if (!preg_match('/^:[\w-]+$/', $attribute->name)) {
-                continue;
-            }
-
-            $name = substr($attribute->name, 1);
-            if ($name === 'class') {
-                continue;
-            }
-
-            $phpExpr = ConvertJsExpression::convert($attribute->value);
-            $data[] = "'$name' => " . $phpExpr;
-            $node->removeAttribute($attribute->name);
-        }
-
-        $dataString = implode(', ', $data);
-
-        $slot = '';
-        $slots = [];
-        $subNodes = iterator_to_array($node->childNodes);
-        foreach ($subNodes as $index => $childNode) {
-            $slotName = null;
-            $slotHtml = $node->ownerDocument->saveHTML($childNode);
-
-            if ($childNode->nodeType === 1) {
-                foreach ($childNode->attributes as $attribute) {
-                    if (strpos($attribute->name, 'v-slot:') === 0) {
-                        $slotName = substr($attribute->name, strlen('v-slot:'));
-                    }
-                }
-            }
-
-            $slotHtml = trim($slotHtml);
-            if (!$slotName) {
-                $slot .= $slotHtml;
-            } else {
-                if (!isset($slots[$slotName])) {
-                    $slots[$slotName] = '';
-                }
-                $slots[$slotName] .= $slotHtml;
-            }
-        }
-        $options = [];
-        $slotVar = '';
-        if (!empty($slot)) {
-            $slotVar = '$this->renderHtml(' . json_encode($slot, JSON_UNESCAPED_SLASHES) . ', $reallyUnrealisticVariableNameForVuePre)';
-        }
-        foreach ($slots as $name => $html) {
-            $options[] = '\'' . $name . '\'=>$this->renderHtml(' . json_encode($html, JSON_UNESCAPED_SLASHES) . ', $reallyUnrealisticVariableNameForVuePre)';
-        }
-        $optionsVar = "['slot'=>" . $slotVar . ", 'slots'=>[" . implode(',', $options) . "]]";
-
-        $newNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' ' . $errorCode . ' echo $this->renderComponent(' . $componentNameExpr . ', [' . $dataString . '], ' . $optionsVar . '); ' . static::PHPEND);
-        $node->parentNode->replaceChild($newNode, $node);
-    }
-
-    private function handleIf(DOMNode $node, array $options) {
-        if ($node->hasAttribute('v-if')) {
-            $conditionString = $node->getAttribute('v-if');
-            $node->removeAttribute('v-if');
-            $phpExpr = ConvertJsExpression::convert($conditionString);
-            $errorCode = '$this->setErrorHint(' . ($node->getLineNo()) . ', "' . addslashes($conditionString) . '");';
-            // Add php code
-            $beforeNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' ' . $errorCode . ' if($_HANDLEIFRESULT' . ($options["nodeDepth"]) . ' = ' . $phpExpr . ') { ' . static::PHPEND);
-            $afterNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' } ' . static::PHPEND);
-            $node->parentNode->insertBefore($beforeNode, $node);
-            if ($options['nextSibling']) {$node->parentNode->insertBefore($afterNode, $options['nextSibling']);} else { $node->parentNode->appendChild($afterNode);}
-        } elseif ($node->hasAttribute('v-else-if')) {
-            $conditionString = $node->getAttribute('v-else-if');
-            $node->removeAttribute('v-else-if');
-            $phpExpr = ConvertJsExpression::convert($conditionString);
-            $errorCode = '$this->setErrorHint(' . ($node->getLineNo()) . ', "' . addslashes($conditionString) . '");';
-            // Add php code
-            $beforeNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' ' . $errorCode . ' if(!$_HANDLEIFRESULT' . ($options["nodeDepth"]) . ' && $_HANDLEIFRESULT' . ($options["nodeDepth"]) . ' = ' . $phpExpr . ') { ' . static::PHPEND);
-            $afterNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' } ' . static::PHPEND);
-            $node->parentNode->insertBefore($beforeNode, $node);
-            if ($options['nextSibling']) {$node->parentNode->insertBefore($afterNode, $options['nextSibling']);} else { $node->parentNode->appendChild($afterNode);}
-        } elseif ($node->hasAttribute('v-else')) {
-            $node->removeAttribute('v-else');
-            // Add php code
-            $beforeNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' if(!$_HANDLEIFRESULT' . ($options["nodeDepth"]) . ') { ' . static::PHPEND);
-            $afterNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' } ' . static::PHPEND);
-            $node->parentNode->insertBefore($beforeNode, $node);
-            if ($options['nextSibling']) {$node->parentNode->insertBefore($afterNode, $options['nextSibling']);} else { $node->parentNode->appendChild($afterNode);}
-        }
-    }
-    private function handleFor(DOMNode $node, array $options) {
-        /** @var DOMElement $node */
-        if ($node->hasAttribute('v-for')) {
-            list($itemName, $listName) = explode(' in ', $node->getAttribute('v-for'));
-            $node->removeAttribute('v-for');
-
-            // Support for item,index in myArray
-            $itemName = trim($itemName, '() ');
-            $itemNameEx = explode(',', $itemName);
-            if (count($itemNameEx) === 2) {
-                $itemName = trim($itemNameEx[1]) . ' => $' . trim($itemNameEx[0]);
-            }
-
-            $phpExpr = ConvertJsExpression::convert($listName);
-
-            $beforeNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' foreach((' . $phpExpr . ') as $' . $itemName . ') { ' . static::PHPEND);
-            $afterNode = $node->ownerDocument->createTextNode(static::PHPOPEN . ' } ' . static::PHPEND);
-            $node->parentNode->insertBefore($beforeNode, $node);
-            if ($options['nextSibling']) {$node->parentNode->insertBefore($afterNode, $options['nextSibling']);} else { $node->parentNode->appendChild($afterNode);}
-        }
-    }
-    private function appendHTML(DOMNode $parent, $source) {
-        $tmpDoc = $this->parseHtml($source);
-        foreach ($tmpDoc->getElementsByTagName('body')->item(0)->childNodes as $node) {
-            $node = $parent->ownerDocument->importNode($node, true);
-            $parent->appendChild($node);
-        }
-    }
-    private function handleRawHtml(DOMNode $node) {
-        /** @var DOMElement $node */
-        if ($node->hasAttribute('v-html')) {
-            $expr = $node->getAttribute('v-html');
-            $node->removeAttribute('v-html');
-            $phpExpr = ConvertJsExpression::convert($expr);
-            $text = static::PHPOPEN . ' echo (' . $phpExpr . '); ' . static::PHPEND;
-            $node->textContent = $text;
-        }
-    }
-
-    private function getNodeInnerHtml($node) {
-        $html = '';
-        $subNodes = iterator_to_array($node->childNodes);
-        foreach ($subNodes as $index => $childNode) {
-            $html .= $node->ownerDocument->saveHTML($childNode);
-        }
-        return $html;
-    }
-
-    private function getBodyHtml($dom) {
-        return $this->getNodeInnerHtml($dom->getElementsByTagName('body')->item(0));
-    }
-
-    private function removeNode(DOMElement $node) {
-        $node->parentNode->removeChild($node);
-    }
-    /**
-     * @param DOMNode $node
-     *
-     * @return bool
-     */
-    private function isElementNode(DOMNode $node) {
-        return $node->nodeType === 1;
-    }
-    // private function isTextNode(DOMNode $node) {
-    //     return $node instanceof DOMCharacterData;
-    // }
-    private function isRemovedFromTheDom(DOMNode $node) {
-        return $node->parentNode === null;
     }
 
     private function setErrorHint($line, $expression) {

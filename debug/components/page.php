@@ -20,7 +20,7 @@
                 <div v-if="myVar !== 'Hello'">IF1</div>
                 <div v-else-if="myVar === 'Hello'">
                     <div v-if="myVar !== 'Hello'">IF2</div>
-                    <div v-else-if="myVar !== 'Hello'">ELSEIF2</div>
+                    <div v-else-if="i === 1">ELSEIF2</div>
                     <div v-else>ELSE2</div>
                 </div>
             </div>
