@@ -7,18 +7,15 @@ use DOMNode;
 
 class Node {
 
-    public $childNodes = [];
-    public $settings = [];
+    public $settings = null;
+    public $template = null;
 
-    public $engine = null;
+    public function __construct(CacheTemplate $template = null) {
+        $this->template = $template;
 
-    public function __construct(Engine $engine) {
-        $this->engine = $engine;
-    }
-
-    public function parseDomNode(DOMNode $node, $options = []): Node {
-
-        $this->settings = [
+        $this->settings = (object) [
+            'childNodes' => [],
+            //
             'isTemplate' => false,
             'isComponent' => null,
             //
@@ -35,57 +32,54 @@ class Node {
             'vslot' => null,
             'slotNodes' => [],
         ];
+    }
 
-        $this->settings['nodeType'] = $node->nodeType;
-        $this->settings['content'] = $node->nodeType === 3 ? $node->textContent : '';
+    public function parseDomNode(DOMNode $node, $options = []) {
+
+        $this->settings->nodeType = $node->nodeType;
+        $this->settings->content = $node->nodeType === 3 ? $node->textContent : '';
 
         $this->replaceMustacheVariables($node);
         if ($node->nodeType === 1) {
+
             $this->stripEventHandlers($node);
             $this->handleFor($node, $options);
-
             $this->handleIf($node, $options);
-            if ($this->isRemovedFromTheDom($node)) {return $this;}
-
             $this->handleTemplateTag($node, $options);
-            if ($this->isRemovedFromTheDom($node)) {return $this;}
-
             $this->handleSlot($node, $options);
-            if ($this->isRemovedFromTheDom($node)) {return $this;}
-
             $this->handleComponent($node, $options);
-            if ($this->isRemovedFromTheDom($node)) {return $this;}
-
             $this->handleAttributeBinding($node);
-            if ($this->isRemovedFromTheDom($node)) {return $this;}
-
             $this->handleRawHtml($node);
-            if ($this->isRemovedFromTheDom($node)) {return $this;}
 
             $subNodes = iterator_to_array($node->childNodes);
-            $this->childNodes = [];
+            $this->settings->childNodes = [];
             foreach ($subNodes as $index => $childNode) {
-                if (!$this->settings['isComponent']) {
-                    $newNode = new Node($this->engine);
-                    $this->childNodes[] = $newNode->parseDomNode($childNode);
+                if (!$this->settings->isComponent) {
+                    $newNode = new Node($this->template);
+                    $this->settings->childNodes[] = $newNode->parseDomNode($childNode);
                 }
                 $node->removeChild($childNode);
             }
 
             $newNode = $node->ownerDocument->createTextNode('_VUEPRE_HTML_PLACEHOLDER_');
             $node->appendChild($newNode);
-            $this->settings['content'] = $node->ownerDocument->saveHTML($node);
+            $this->settings->content = $node->ownerDocument->saveHTML($node);
         }
 
         return $this;
     }
 
-    public function makeTemplate(): Array{
+    public function export(): \stdClass{
         $result = $this->settings;
 
-        $result['childNodes'] = [];
-        foreach ($this->childNodes as $node) {
-            $result['childNodes'][] = $node->makeTemplate();
+        foreach ($result->childNodes as $k => $v) {
+            $result->childNodes[$k] = $v->export();
+        }
+
+        foreach ($result->slotNodes as $k => $v) {
+            foreach ($result->slotNodes->$k as $kk => $vv) {
+                $result->slotNodes->$k[$kk] = $vv->export();
+            }
         }
 
         return $result;
@@ -102,19 +96,19 @@ class Node {
     private function replaceMustacheVariables(DOMNode $node) {
         if ($node->nodeType === 3) {
             // $text = $node->nodeValue;
-            $text = $this->settings['content'];
+            $text = $this->settings->content;
             $count = 0;
-            $this->settings['mustacheValues'] = [];
+            $this->settings->mustacheValues = [];
             $regex = '/\{\{(?P<expression>.*?)\}\}/x';
             preg_match_all($regex, $text, $matches);
             foreach ($matches['expression'] as $index => $expression) {
                 $phpExpr = ConvertJsExpression::convert($expression);
                 $tag = '_VUEPRE_MUSHTAG' . $count . '_';
                 $text = str_replace($matches[0][$index], $tag, $text);
-                $this->settings['mustacheValues'][$tag] = $phpExpr;
+                $this->settings->mustacheValues[$tag] = $phpExpr;
                 $count++;
             }
-            $this->settings['content'] = $text;
+            $this->settings->content = $text;
         }
     }
 
@@ -133,12 +127,12 @@ class Node {
                 $currentClass = $node->getAttribute('class');
                 $node->setAttribute($name, $currentClass . ' _VUEPRE_CLASS_');
                 $phpExpr = ConvertJsExpression::convert($attribute->value);
-                $this->settings['class'] = $phpExpr;
+                $this->settings->class = $phpExpr;
             }
 
             if ($node->tagName === 'component' && $name === 'is') {
                 $phpExpr = ConvertJsExpression::convert($attribute->value);
-                $this->settings['isComponent'] = $phpExpr;
+                $this->settings->isComponent = $phpExpr;
                 return;
             }
         }
@@ -153,7 +147,7 @@ class Node {
             return;
         }
 
-        $this->settings['isTemplate'] = true;
+        $this->settings->isTemplate = true;
     }
 
     private function handleSlot(DOMNode $node, $options) {
@@ -167,18 +161,18 @@ class Node {
             $slotName = $node->getAttribute('name');
         }
 
-        $this->settings['vslot'] = $slotName;
+        $this->settings->vslot = $slotName;
     }
 
     private function handleComponent(DOMNode $node) {
 
         $componentName = $node->tagName;
 
-        if (!isset($this->engine->componentAlias[$componentName])) {
+        if (!in_array($componentName, $this->template->knownComponentNames, true)) {
             return;
         }
         $componentNameExpr = '\'' . $componentName . '\'';
-        $this->settings['isComponent'] = $componentNameExpr;
+        $this->settings->isComponent = $componentNameExpr;
 
         $data = [];
         foreach (iterator_to_array($node->attributes) as $attribute) {
@@ -192,11 +186,11 @@ class Node {
             }
 
             $phpExpr = ConvertJsExpression::convert($attribute->value);
-            $this->settings['bindedValues'][$name] = $phpExpr;
+            $this->settings->bindedValues[$name] = $phpExpr;
             $node->removeAttribute($attribute->name);
         }
 
-        $slotNodes = [];
+        $slotNodes = (object) [];
         $subNodes = iterator_to_array($node->childNodes);
         foreach ($subNodes as $index => $childNode) {
             $slotName = '_DEFAULTSLOT_';
@@ -209,16 +203,16 @@ class Node {
                 }
             }
 
-            $slotNode = new Node($this->engine);
-            $slotNode = $slotNode->parseDomNode($childNode);
+            $slotNode = new Node($this->template);
+            $slotNode->parseDomNode($childNode);
 
-            if (!isset($slotNodes[$slotName])) {
-                $slotNodes[$slotName] = [];
+            if (!isset($slotNodes->$slotName)) {
+                $slotNodes->$slotName = [];
             }
-            $slotNodes[$slotName][] = $slotNode->makeTemplate();
+            $slotNodes->$slotName[] = $slotNode;
         }
 
-        $this->settings['slotNodes'] = $slotNodes;
+        $this->settings->slotNodes = $slotNodes;
     }
 
     private function handleIf(DOMNode $node, array $options) {
@@ -226,15 +220,15 @@ class Node {
             $conditionString = $node->getAttribute('v-if');
             $node->removeAttribute('v-if');
             $phpExpr = ConvertJsExpression::convert($conditionString);
-            $this->settings['vif'] = $phpExpr;
+            $this->settings->vif = $phpExpr;
         } elseif ($node->hasAttribute('v-else-if')) {
             $conditionString = $node->getAttribute('v-else-if');
             $node->removeAttribute('v-else-if');
             $phpExpr = ConvertJsExpression::convert($conditionString);
-            $this->settings['velseif'] = $phpExpr;
+            $this->settings->velseif = $phpExpr;
         } elseif ($node->hasAttribute('v-else')) {
             $node->removeAttribute('v-else');
-            $this->settings['velse'] = true;
+            $this->settings->velse = true;
         }
     }
     private function handleFor(DOMNode $node, array $options) {
@@ -253,9 +247,9 @@ class Node {
             }
 
             $phpExpr = ConvertJsExpression::convert($listName);
-            $this->settings['vfor'] = $phpExpr;
-            $this->settings['vforAsName'] = $itemName;
-            $this->settings['vforIndexName'] = $itemIndex;
+            $this->settings->vfor = $phpExpr;
+            $this->settings->vforAsName = $itemName;
+            $this->settings->vforIndexName = $itemIndex;
         }
     }
 
@@ -265,11 +259,8 @@ class Node {
             $expr = $node->getAttribute('v-html');
             $node->removeAttribute('v-html');
             $phpExpr = ConvertJsExpression::convert($expr);
-            $this->settings['vhtml'] = $phpExpr;
+            $this->settings->vhtml = $phpExpr;
         }
     }
 
-    private function isRemovedFromTheDom(DOMNode $node) {
-        return $node->parentNode === null;
-    }
 }

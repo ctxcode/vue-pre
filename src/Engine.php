@@ -3,8 +3,6 @@
 namespace VuePre;
 
 use DOMDocument;
-use DOMElement;
-use DOMNode;
 use Exception;
 use LibXMLError;
 
@@ -31,8 +29,7 @@ class Engine {
 
     private $slotHtml = [];
 
-    const PHPOPEN = '__VUEPREPHPTAG__';
-    const PHPEND = '__VUEPREPHPENDTAG__';
+    private static $cache = [];
 
     public function __construct() {
     }
@@ -284,47 +281,25 @@ class Engine {
         $dom = $this->parseHtml('<div id="_VuePreRootElement_">' . $html . '</div>');
         $rootNode = $dom->getElementById('_VuePreRootElement_');
 
-        $result = [];
+        $template = new CacheTemplate($this);
+        $template->knownComponentNames = array_keys($this->componentAlias);
+
         foreach ($rootNode->childNodes as $k => $childNode) {
-            $rNode = new Node($this);
-            $rNode->parseDomNode($childNode);
-            $result[] = $rNode->makeTemplate();
-        }
-        return json_encode($result);
-
-        //
-        $html = $this->getNodeInnerHtml($rootNode);
-
-        // Replace php tags
-        $html = str_replace(static::PHPOPEN, '<?php', $html);
-        $html = str_replace(static::PHPEND, '?>', $html);
-
-        // Revert html escaping within php tags
-        $offset = 0;
-        while (true) {
-            $found = preg_match('/<\?php((?s:.)*)\?>/', $html, $match, PREG_OFFSET_CAPTURE, $offset);
-            if (!$found) {
-                break;
-            }
-            $code = $match[1][0];
-            $code = htmlspecialchars_decode($code);
-            $code = '<?php' . $code . '?>';
-            $html = substr_replace($html, $code, $match[0][1], strlen($match[0][0]));
-
-            $offset = $match[0][1] + 1;
+            $template->addDomNode($childNode);
         }
 
-        return $html;
+        return json_encode($template->export());
     }
 
-    // reallyUnrealisticVariableNameForVuePre is the variable that holds the template data
     private function renderCachedTemplate($file, $data) {
 
         set_error_handler(array($this, 'handleError'));
-        $html = '';
-        foreach (json_decode(file_get_contents($file)) as $node) {
-            $html .= $this->templateToHtml($node, $data);
-        }
+
+        $exportData = json_decode(file_get_contents($file));
+        $template = new CacheTemplate($this);
+        $template->import($exportData);
+        $html = $template->render($data);
+
         restore_error_handler();
 
         return $html;
@@ -359,10 +334,6 @@ class Engine {
         if (!file_exists($cacheFile) || $this->disableCache) {
             $html = $this->createCachedTemplate($template, $options);
             file_put_contents($cacheFile, $html);
-        }
-
-        if (isset($options['slot'])) {
-            $this->slotHtml['_DEFAULTSLOT_'] = $options['slot'];
         }
 
         if (isset($options['slots'])) {
@@ -447,153 +418,9 @@ class Engine {
         return $rootNodes->item(0);
     }
 
-    private function appendHTML(DOMNode $parent, $source) {
-        $tmpDoc = $this->parseHtml($source);
-        foreach ($tmpDoc->getElementsByTagName('body')->item(0)->childNodes as $node) {
-            $node = $parent->ownerDocument->importNode($node, true);
-            $parent->appendChild($node);
-        }
-    }
-
-    private function getNodeInnerHtml($node) {
-        $html = '';
-        $subNodes = iterator_to_array($node->childNodes);
-        foreach ($subNodes as $index => $childNode) {
-            $html .= $node->ownerDocument->saveHTML($childNode);
-        }
-        return $html;
-    }
-
-    private function getBodyHtml($dom) {
-        return $this->getNodeInnerHtml($dom->getElementsByTagName('body')->item(0));
-    }
-
-    private function removeNode(DOMElement $node) {
-        $node->parentNode->removeChild($node);
-    }
-    /**
-     * @param DOMNode $node
-     *
-     * @return bool
-     */
-    private function isRemovedFromTheDom(DOMNode $node) {
-        return $node->parentNode === null;
-    }
-
     private function setErrorHint($line, $expression) {
         $this->errorLine = $line;
         $this->errorExpression = $expression;
     }
 
-    public static function eval($expr, $reallyUnrealisticVariableNameForVuePre) {
-
-        foreach ($reallyUnrealisticVariableNameForVuePre as $k => $v) {
-            if ($k === 'this') {
-                throw new Exception('Variable "this" is not allowed');
-            }
-            if (isset(${$k})) {
-                throw new Exception('Variable "' . $k . '" is already the name of a method');
-            }
-            ${$k} = $v;
-        }
-
-        try {
-            $result = eval('return ' . $expr . ';');
-        } catch (\Exception $e) {
-            throw new \Exception('Could not execute: ' . $expr);
-        }
-
-        return $result;
-    }
-
-    public function templateToHtml(\stdClass $node, $data): String {
-        $html = $node->content;
-
-        // VFOR
-        if ($node->vfor) {
-            $html = '';
-            $items = static::eval($node->vfor, $data);
-            foreach ($items as $k => $v) {
-                if ($node->vforIndexName) {$data[$node->vforIndexName] = $k;}
-                if ($node->vforAsName) {$data[$node->vforAsName] = $v;}
-                $node->vfor = null;
-                $html .= $this->templateToHtml($node, $data);
-            }
-            return $html;
-        }
-
-        // VIF
-        if ($node->vif) {
-            $node->vifResult = static::eval($node->vif, $data);
-            if (!$node->vifResult) {return '';}
-        }
-        if ($node->velseif && (!isset($node->vifResult) || !$node->vifResult)) {
-            $node->vifResult = static::eval($node->velseif, $data);
-            if (!$node->vifResult) {return '';}
-        }
-        if ($node->velse && (!isset($node->vifResult) || $node->vifResult)) {
-            $node->vifResult = null;
-            return '';
-        }
-
-        // VSLOT
-        if ($node->vslot) {
-            $slotHtml = $this->getSlotHtml($node->vslot);
-            // dd($this->slotHtml);
-            // dd($node->vslot);
-            // dd($slotHtml);
-            return $slotHtml;
-        }
-
-        // VHTML
-        if ($node->vhtml) {
-            $html = str_replace('_VUEPRE_HTML_PLACEHOLDER_', static::eval($node->vhtml, $data), $html);
-        }
-
-        // Components
-        if ($node->isComponent) {
-            $options = [];
-            // Render slots
-            $slotHtml = [];
-            foreach ($node->slotNodes as $slotName => $nodes) {
-                if (!isset($slotHtml[$slotName])) {
-                    $slotHtml[$slotName] = '';
-                }
-
-                foreach ($nodes as $slotNode) {
-                    $slotHtml[$slotName] .= $this->templateToHtml($slotNode, $data);
-                }
-            }
-            $options['slots'] = $slotHtml;
-            // Render component
-            $newData = [];
-            foreach ($node->bindedValues as $k => $expr) {
-                $newData[$k] = static::eval($expr, $data);
-            }
-            return $this->renderComponent(static::eval($node->isComponent, $data), $newData, $options);
-        }
-
-        // {{ }}
-        foreach ($node->mustacheValues as $k => $v) {
-            $html = str_replace($k, static::eval($v, $data), $html);
-        }
-
-        // SUBNODES
-        if ($node->nodeType === 1) {
-            $subHtml = '';
-            $vifResult = null;
-            foreach ($node->childNodes as $cnode) {
-                $cnode->vifResult = $vifResult;
-                $subHtml .= $this->templateToHtml($cnode, $data);
-                $vifResult = $cnode->vifResult ?? null;
-            }
-            // <template>
-            if ($node->isTemplate) {
-                return $subHtml;
-            }
-            $html = str_replace('_VUEPRE_HTML_PLACEHOLDER_', $subHtml, $html);
-        }
-
-        return $html;
-    }
 }
