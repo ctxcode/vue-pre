@@ -19,19 +19,19 @@ $data = [
 ];
 
 $vue = new \VuePre\Engine();
-$vue->disableCache = true;
+// $vue->disableCache = true;
 $vue->setCacheDirectory(__DIR__ . '/cache');
 $vue->setComponentDirectory(__DIR__ . '/components');
 
-// $benchSeconds = 2;
-// $end = time() + $benchSeconds;
-// $compileTimes = 0;
-// while (time() < $end) {
-//     $html = $vue->renderComponent('page', $data);
-//     $compileTimes++;
-// }
-// echo 'Compiled ' . ($compileTimes / $benchSeconds) . ' times per second';
-// exit;
+$benchSeconds = 2;
+$end = time() + $benchSeconds;
+$compileTimes = 0;
+while (time() < $end) {
+    $html = $vue->renderComponent('page', $data);
+    $compileTimes++;
+}
+echo 'Compiled ' . ($compileTimes / $benchSeconds) . ' times per second';
+exit;
 
 $html = $vue->renderComponent('page', $data);
 $templates = $vue->getTemplateScripts();
