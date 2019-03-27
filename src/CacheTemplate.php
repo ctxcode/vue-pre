@@ -93,20 +93,24 @@ class CacheTemplate {
             $options = [];
             // Render slots
             $slotHtml = [];
-            foreach ($node->slotNodes as $slotName => $nodes) {
-                if (!isset($slotHtml[$slotName])) {
-                    $slotHtml[$slotName] = '';
-                }
+            if (isset($node->slotNodes)) {
+                foreach ($node->slotNodes as $slotName => $nodes) {
+                    if (!isset($slotHtml[$slotName])) {
+                        $slotHtml[$slotName] = '';
+                    }
 
-                foreach ($nodes as $slotNode) {
-                    $slotHtml[$slotName] .= $this->renderNode($slotNode, $data);
+                    foreach ($nodes as $slotNode) {
+                        $slotHtml[$slotName] .= $this->renderNode($slotNode, $data);
+                    }
                 }
             }
             $options['slots'] = $slotHtml;
             // Render component
             $newData = [];
-            foreach ($node->bindedValues as $k => $expr) {
-                $newData[$k] = static::eval($expr, $data);
+            if (isset($node->bindedValues)) {
+                foreach ($node->bindedValues as $k => $expr) {
+                    $newData[$k] = static::eval($expr, $data);
+                }
             }
             return $this->engine->renderComponent(static::eval($node->isComponent, $data), $newData, $options);
         }
