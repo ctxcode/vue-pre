@@ -48,15 +48,15 @@ class CacheTemplate {
     }
 
     public function renderNode($node, $data): String {
-        $html = $node->content;
+        $html = isset($node->content) ? $node->content : '';
 
         // VFOR
-        if ($node->vfor) {
+        if (isset($node->vfor)) {
             $html = '';
             $items = static::eval($node->vfor, $data);
             foreach ($items as $k => $v) {
-                if ($node->vforIndexName) {$data[$node->vforIndexName] = $k;}
-                if ($node->vforAsName) {$data[$node->vforAsName] = $v;}
+                if (isset($node->vforIndexName)) {$data[$node->vforIndexName] = $k;}
+                if (isset($node->vforAsName)) {$data[$node->vforAsName] = $v;}
                 $node->vfor = null;
                 $html .= $this->renderNode($node, $data);
             }
@@ -64,32 +64,32 @@ class CacheTemplate {
         }
 
         // VIF
-        if ($node->vif) {
+        if (isset($node->vif)) {
             $node->vifResult = static::eval($node->vif, $data);
             if (!$node->vifResult) {return '';}
         }
-        if ($node->velseif && (!isset($node->vifResult) || !$node->vifResult)) {
+        if (isset($node->velseif) && (!isset($node->vifResult) || !$node->vifResult)) {
             $node->vifResult = static::eval($node->velseif, $data);
             if (!$node->vifResult) {return '';}
         }
-        if ($node->velse && (!isset($node->vifResult) || $node->vifResult)) {
+        if (isset($node->velse) && (!isset($node->vifResult) || $node->vifResult)) {
             $node->vifResult = null;
             return '';
         }
 
         // VSLOT
-        if ($node->vslot) {
+        if (isset($node->vslot)) {
             $slotHtml = $this->engine->getSlotHtml($node->vslot);
             return $slotHtml;
         }
 
         // VHTML
-        if ($node->vhtml) {
+        if (isset($node->vhtml)) {
             $html = str_replace('_VUEPRE_HTML_PLACEHOLDER_', static::eval($node->vhtml, $data), $html);
         }
 
         // Components
-        if ($node->isComponent) {
+        if (isset($node->isComponent)) {
             $options = [];
             // Render slots
             $slotHtml = [];
@@ -112,21 +112,25 @@ class CacheTemplate {
         }
 
         // {{ }}
-        foreach ($node->mustacheValues as $k => $v) {
-            $html = str_replace($k, static::eval($v, $data), $html);
+        if (isset($node->mustacheValues)) {
+            foreach ($node->mustacheValues as $k => $v) {
+                $html = str_replace($k, static::eval($v, $data), $html);
+            }
         }
 
         // SUBNODES
         if ($node->nodeType === 1) {
             $subHtml = '';
             $vifResult = null;
-            foreach ($node->childNodes as $cnode) {
-                $cnode->vifResult = $vifResult;
-                $subHtml .= $this->renderNode($cnode, $data);
-                $vifResult = $cnode->vifResult ?? null;
+            if (isset($node->childNodes)) {
+                foreach ($node->childNodes as $cnode) {
+                    $cnode->vifResult = $vifResult;
+                    $subHtml .= $this->renderNode($cnode, $data);
+                    $vifResult = $cnode->vifResult ?? null;
+                }
             }
             // <template>
-            if ($node->isTemplate) {
+            if (isset($node->isTemplate)) {
                 return $subHtml;
             }
             $html = str_replace('_VUEPRE_HTML_PLACEHOLDER_', $subHtml, $html);
@@ -140,9 +144,6 @@ class CacheTemplate {
         foreach ($reallyUnrealisticVariableNameForVuePre as $k => $v) {
             if ($k === 'this') {
                 throw new Exception('Variable "this" is not allowed');
-            }
-            if (isset(${$k})) {
-                throw new Exception('Variable "' . $k . '" is already the name of a method');
             }
             ${$k} = $v;
         }

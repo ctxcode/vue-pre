@@ -29,7 +29,7 @@ class Engine {
 
     private $slotHtml = [];
 
-    private static $cache = [];
+    private static $fileCache = [];
 
     public function __construct() {
     }
@@ -295,7 +295,11 @@ class Engine {
 
         set_error_handler(array($this, 'handleError'));
 
-        $exportData = json_decode(file_get_contents($file));
+        if (!isset(static::$fileCache[$file])) {
+            static::$fileCache[$file] = file_get_contents($file);
+        }
+        $exportData = json_decode(static::$fileCache[$file]);
+
         $template = new CacheTemplate($this);
         $template->import($exportData);
         $html = $template->render($data);

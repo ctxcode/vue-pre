@@ -14,12 +14,16 @@ class Node {
         $this->template = $template;
 
         $this->settings = (object) [
+            'content' => null,
+            //
             'childNodes' => [],
             //
             'isTemplate' => false,
             'isComponent' => null,
             //
             'vfor' => null,
+            'vforIndexName' => null,
+            'vforAsName' => null,
             'vif' => null,
             'velseif' => null,
             'velse' => null,
@@ -37,7 +41,7 @@ class Node {
     public function parseDomNode(DOMNode $node, $options = []) {
 
         $this->settings->nodeType = $node->nodeType;
-        $this->settings->content = $node->nodeType === 3 ? $node->textContent : '';
+        $this->settings->content = $node->nodeType === 3 ? $node->textContent : null;
 
         $this->replaceMustacheVariables($node);
         if ($node->nodeType === 1) {
@@ -70,15 +74,40 @@ class Node {
     }
 
     public function export(): \stdClass{
-        $result = $this->settings;
+        $result = (object) [];
+        $settings = $this->settings;
 
-        foreach ($result->childNodes as $k => $v) {
-            $result->childNodes[$k] = $v->export();
+        if ($settings->isTemplate) {
+            $result->isTemplate = true;
         }
 
-        foreach ($result->slotNodes as $k => $v) {
-            foreach ($result->slotNodes->$k as $kk => $vv) {
-                $result->slotNodes->$k[$kk] = $vv->export();
+        $copyIfNotNull = ['nodeType', 'content', 'isComponent', 'vfor', 'vforIndexName', 'vforAsName', 'vif', 'velseif', 'velse', 'vhtml', 'class', 'vslot'];
+        foreach ($copyIfNotNull as $k) {
+            if ($settings->$k !== null) {
+                $result->$k = $settings->$k;
+            }
+        }
+
+        $copyIfHasItems = ['mustacheValues', 'bindedValues'];
+        foreach ($copyIfHasItems as $k) {
+            if (count($settings->$k) > 0) {
+                $result->$k = $settings->$k;
+            }
+        }
+
+        if (count($settings->childNodes) > 0) {
+            $result->childNodes = [];
+            foreach ($settings->childNodes as $k => $v) {
+                $result->childNodes[$k] = $v->export();
+            }
+        }
+
+        if (count($settings->slotNodes) > 0) {
+            $result->slotNodes = (object) [];
+            foreach ($settings->slotNodes as $k => $v) {
+                foreach ($settings->slotNodes->$k as $kk => $vv) {
+                    $result->slotNodes->$k[$kk] = $vv->export();
+                }
             }
         }
 
