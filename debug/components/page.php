@@ -2,6 +2,7 @@
 <template>
     <layout :layout-data="layoutData">
         <!-- output && expressions -->
+        <div>{{ --- }}</div>
         <div>{{ 420 }}</div>
         <div>{{ "'" }}</div>
         <div>{{ '"' }}</div>

@@ -24,8 +24,7 @@ class Engine {
     public $disableCache = false;
     public $disableAutoScan = false;
 
-    private $errorLine = null;
-    private $errorExpression = null;
+    public $errorCurrentTemplate = null;
 
     private $slotHtml = [];
 
@@ -310,11 +309,7 @@ class Engine {
     }
 
     public function handleError($errno, $errstr, $errFile, $errLine) {
-        echo '<pre>';
-        echo 'Error parsing "' . htmlspecialchars($this->errorExpression) . '" at line ' . ($this->errorLine) . ': ' . $errstr . "\n";
-        echo 'Error at: line ' . $errLine . ' in ' . $errFile;
-        echo '</pre>';
-        exit;
+        return false;
     }
 
     /////////////////////////
@@ -330,6 +325,8 @@ class Engine {
         if (empty(trim($template))) {
             return '';
         }
+
+        $this->errorCurrentTemplate = $template;
 
         $hash = md5($template . filemtime(__FILE__) . json_encode($this->componentAlias)); // If package is updated, hash should change
         $cacheFile = $this->cacheDir . '/' . $hash . '.php';

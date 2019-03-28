@@ -254,7 +254,7 @@ class ConvertJsExpression {
     }
 
     public function fail() {
-        throw new \Exception('Cannot parse expression: ' . $this->expression);
+        throw new \Exception('VuePre doesnt understand this JS expression: "' . $this->expression . '"', 100);
     }
 
     // Runtime functions

@@ -10,10 +10,14 @@ class Node {
     public $settings = null;
     public $template = null;
 
+    private $errorLineNr = '?';
+
     public function __construct(CacheTemplate $template = null) {
         $this->template = $template;
 
         $this->settings = (object) [
+            'line' => null,
+            'nodeType' => null,
             'content' => null,
             //
             'childNodes' => [],
@@ -40,37 +44,58 @@ class Node {
 
     public function parseDomNode(DOMNode $node, $options = []) {
 
-        $this->settings->nodeType = $node->nodeType;
-        $this->settings->content = $node->nodeType === 3 ? $node->textContent : null;
+        try {
 
-        $this->replaceMustacheVariables($node);
-        if ($node->nodeType === 1) {
+            $lineNr = $node->getLineNo() - 1;
+            $this->errorLineNr = $lineNr;
 
-            $this->stripEventHandlers($node);
-            $this->handleFor($node, $options);
-            $this->handleIf($node, $options);
-            $this->handleTemplateTag($node, $options);
-            $this->handleSlot($node, $options);
-            $this->handleAttributeBinding($node);
-            $this->handleComponent($node, $options);
-            $this->handleRawHtml($node);
+            $this->settings->line = $lineNr;
+            $this->settings->nodeType = $node->nodeType;
+            $this->settings->content = $node->nodeType === 3 ? $node->textContent : null;
 
-            $subNodes = iterator_to_array($node->childNodes);
-            $this->settings->childNodes = [];
-            foreach ($subNodes as $index => $childNode) {
-                if (!$this->settings->isComponent) {
-                    $newNode = new Node($this->template);
-                    $this->settings->childNodes[] = $newNode->parseDomNode($childNode);
+            $this->replaceMustacheVariables($node);
+            if ($node->nodeType === 1) {
+
+                $this->stripEventHandlers($node);
+                $this->handleFor($node, $options);
+                $this->handleIf($node, $options);
+                $this->handleTemplateTag($node, $options);
+                $this->handleSlot($node, $options);
+                $this->handleAttributeBinding($node);
+                $this->handleComponent($node, $options);
+                $this->handleRawHtml($node);
+
+                $subNodes = iterator_to_array($node->childNodes);
+                $this->settings->childNodes = [];
+                foreach ($subNodes as $index => $childNode) {
+                    if (!$this->settings->isComponent) {
+                        $newNode = new Node($this->template);
+                        $this->settings->childNodes[] = $newNode->parseDomNode($childNode);
+                    }
+                    $node->removeChild($childNode);
                 }
-                $node->removeChild($childNode);
+
+                $newNode = $node->ownerDocument->createTextNode('_VUEPRE_HTML_PLACEHOLDER_');
+                $node->appendChild($newNode);
+                $this->settings->content = $node->ownerDocument->saveHTML($node);
             }
 
-            $newNode = $node->ownerDocument->createTextNode('_VUEPRE_HTML_PLACEHOLDER_');
-            $node->appendChild($newNode);
-            $this->settings->content = $node->ownerDocument->saveHTML($node);
+        } catch (\Exception $e) {
+            if ($e->getCode() === 100) {
+                $this->parseError($e);
+            } else {
+                throw $e;
+            }
         }
 
         return $this;
+    }
+
+    public function parseError($e) {
+        $template = $this->template->engine->errorCurrentTemplate;
+        $lineNr = $this->errorLineNr;
+        $error = $e->getMessage();
+        CacheTemplate::templateError($template, $lineNr, $error);
     }
 
     public function export(): \stdClass{
@@ -81,7 +106,7 @@ class Node {
             $result->isTemplate = true;
         }
 
-        $copyIfNotNull = ['nodeType', 'content', 'isComponent', 'vfor', 'vforIndexName', 'vforAsName', 'vif', 'velseif', 'velse', 'vhtml', 'class', 'vslot'];
+        $copyIfNotNull = ['line', 'nodeType', 'content', 'isComponent', 'vfor', 'vforIndexName', 'vforAsName', 'vif', 'velseif', 'velse', 'vhtml', 'class', 'vslot'];
         foreach ($copyIfNotNull as $k) {
             if ($settings->$k !== null) {
                 $result->$k = $settings->$k;

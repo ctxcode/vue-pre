@@ -48,12 +48,15 @@ class CacheTemplate {
     }
 
     public function renderNode($node, $data): String {
+
+        $this->errorLineNr = $node->line;
+
         $html = isset($node->content) ? $node->content : '';
 
         // VFOR
         if (isset($node->vfor)) {
             $html = '';
-            $items = static::eval($node->vfor, $data);
+            $items = $this->eval($node->vfor, $data);
             foreach ($items as $k => $v) {
                 if (isset($node->vforIndexName)) {$data[$node->vforIndexName] = $k;}
                 if (isset($node->vforAsName)) {$data[$node->vforAsName] = $v;}
@@ -65,11 +68,11 @@ class CacheTemplate {
 
         // VIF
         if (isset($node->vif)) {
-            $node->vifResult = static::eval($node->vif, $data);
+            $node->vifResult = $this->eval($node->vif, $data);
             if (!$node->vifResult) {return '';}
         }
         if (isset($node->velseif) && (!isset($node->vifResult) || !$node->vifResult)) {
-            $node->vifResult = static::eval($node->velseif, $data);
+            $node->vifResult = $this->eval($node->velseif, $data);
             if (!$node->vifResult) {return '';}
         }
         if (isset($node->velse) && (!isset($node->vifResult) || $node->vifResult)) {
@@ -85,7 +88,7 @@ class CacheTemplate {
 
         // VHTML
         if (isset($node->vhtml)) {
-            $html = str_replace('_VUEPRE_HTML_PLACEHOLDER_', static::eval($node->vhtml, $data), $html);
+            $html = str_replace('_VUEPRE_HTML_PLACEHOLDER_', $this->eval($node->vhtml, $data), $html);
         }
 
         // Components
@@ -109,16 +112,16 @@ class CacheTemplate {
             $newData = [];
             if (isset($node->bindedValues)) {
                 foreach ($node->bindedValues as $k => $expr) {
-                    $newData[$k] = static::eval($expr, $data);
+                    $newData[$k] = $this->eval($expr, $data);
                 }
             }
-            return $this->engine->renderComponent(static::eval($node->isComponent, $data), $newData, $options);
+            return $this->engine->renderComponent($this->eval($node->isComponent, $data), $newData, $options);
         }
 
         // {{ }}
         if (isset($node->mustacheValues)) {
             foreach ($node->mustacheValues as $k => $v) {
-                $html = str_replace($k, static::eval($v, $data), $html);
+                $html = str_replace($k, $this->eval($v, $data), $html);
             }
         }
 
@@ -143,7 +146,14 @@ class CacheTemplate {
         return $html;
     }
 
-    public static function eval($expr, $reallyUnrealisticVariableNameForVuePre) {
+    //////////////////
+    // Errors
+    //////////////////
+
+    private $errorExpression = '';
+    private $errorLineNr = '?';
+
+    public function eval($expr, $reallyUnrealisticVariableNameForVuePre) {
 
         foreach ($reallyUnrealisticVariableNameForVuePre as $k => $v) {
             if ($k === 'this') {
@@ -152,13 +162,41 @@ class CacheTemplate {
             ${$k} = $v;
         }
 
-        try {
-            $result = eval('return ' . $expr . ';');
-        } catch (\Exception $e) {
-            throw new \Exception('Could not execute: ' . $expr);
-        }
+        set_error_handler(array($this, 'evalError'));
+        $this->errorExpression = $expr;
+        $result = eval('return ' . $expr . ';');
+        restore_error_handler();
 
         return $result;
+    }
+
+    public function evalError($errno, $errstr, $errFile, $errLine) {
+        $template = $this->engine->errorCurrentTemplate;
+        $lineNr = $this->errorLineNr;
+        $error = 'Cant parse "' . htmlspecialchars($this->errorExpression) . '" : ' . $errstr;
+        static::templateError($template, $lineNr, $error);
+    }
+
+    public static function templateError($template, $lineNr, $error) {
+        echo '<pre><code>';
+        echo 'Error: ' . $error . "\n";
+        echo 'Line:' . $lineNr . "\n";
+        echo 'Template:' . "\n";
+
+        if (is_int($lineNr)) {
+            $lines = explode("\n", $template);
+            $before = array_slice($lines, 0, $lineNr);
+            $line = array_splice($lines, $lineNr, 1)[0];
+            $after = array_slice($lines, $lineNr);
+            echo htmlspecialchars(implode("\n", $before)) . "\n";
+            echo '<span style="color: red;">' . htmlspecialchars($line) . '</span>' . "\n";
+            echo htmlspecialchars(implode("\n", $after));
+        } else {
+            echo htmlspecialchars($template);
+        }
+
+        echo '</code></pre>';
+        exit;
     }
 
 }
