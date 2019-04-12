@@ -17,6 +17,8 @@ $data = [
         'myProp' => 'World',
     ],
     'dynCompo' => 'mypartial',
+    'myclass' => 'red',
+    'style' => 'color:green',
 ];
 
 $vue = new \VuePre\Engine();
@@ -42,6 +44,12 @@ $vueInstance = $vue->getVueInstanceScript('#app', 'page', $data);
 // $html = $vue->renderHtml('<div>{{ title }}</div>', $data);
 ?>
 
+<style>
+.red{ color: red; }
+.blue{ color: blue; }
+.orange{ color: orange; }
+</style>
+
 <script src="https://cdn.jsdelivr.net/npm/vue"></script>
 
 <div id="app">
@@ -50,5 +58,5 @@ $vueInstance = $vue->getVueInstanceScript('#app', 'page', $data);
 
 <?php echo $templates; ?>
 <?php echo $js; ?>
-<?php //echo $vueInstance; ?>
+<?php echo $vueInstance; ?>
 

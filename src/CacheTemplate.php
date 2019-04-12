@@ -86,6 +86,16 @@ class CacheTemplate {
             return $slotHtml;
         }
 
+        // CLASS
+        if (isset($node->class)) {
+            $html = str_replace('_VUEPRE_CLASS_', $this->eval($node->class, $data), $html);
+        }
+
+        // STYLE
+        if (isset($node->style)) {
+            $html = str_replace('_VUEPRE_STYLE_', $this->eval($node->style, $data), $html);
+        }
+
         // VHTML
         if (isset($node->vhtml)) {
             $html = str_replace('_VUEPRE_HTML_PLACEHOLDER_', $this->eval($node->vhtml, $data), $html);

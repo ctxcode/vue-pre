@@ -34,6 +34,7 @@ class Node {
             'vhtml' => null,
             //
             'class' => null,
+            'style' => null,
             'mustacheValues' => [],
             'bindedValues' => [],
             // Slots
@@ -106,7 +107,7 @@ class Node {
             $result->isTemplate = true;
         }
 
-        $copyIfNotNull = ['line', 'nodeType', 'content', 'isComponent', 'vfor', 'vforIndexName', 'vforAsName', 'vif', 'velseif', 'velse', 'vhtml', 'class', 'vslot'];
+        $copyIfNotNull = ['line', 'nodeType', 'content', 'isComponent', 'vfor', 'vforIndexName', 'vforAsName', 'vif', 'velseif', 'velse', 'vhtml', 'class', 'style', 'vslot'];
         foreach ($copyIfNotNull as $k) {
             if ($settings->$k !== null) {
                 $result->$k = $settings->$k;
@@ -185,6 +186,14 @@ class Node {
                 $node->setAttribute($name, $currentClass . ' _VUEPRE_CLASS_');
                 $phpExpr = ConvertJsExpression::convert($attribute->value);
                 $this->settings->class = $phpExpr;
+                continue;
+            }
+
+            if ($name === 'style') {
+                $currentClass = $node->getAttribute('style');
+                $node->setAttribute($name, $currentClass . ' _VUEPRE_STYLE_');
+                $phpExpr = ConvertJsExpression::convert($attribute->value);
+                $this->settings->style = $phpExpr;
                 continue;
             }
 
