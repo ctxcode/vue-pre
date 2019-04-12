@@ -1,10 +1,17 @@
 
-# VuePre (WIP)
-VuePre is a package to prerender vue templates. This is useful for SEO and avoiding blank pages on page load. What VuePre does, is translating the Vue template to a pure PHP template (including all JS expressions) and caches it. Having the templates in pure PHP results in really great performace. 
+# VuePre
+VuePre is a package to prerender vue templates. This is useful for SEO and avoiding blank pages on page load. What VuePre does, is translating the Vue template to a PHP template, then replaces the javascript expressions with PHP expressions and caches it. Once cached, you can render thousands of templates per second depending on your hardware.
 
-## Note
+## PROS
+```
+- Very fast
+- No dependencies
+```
 
-This package is still under development and can change frequently
+## CONS
+```
+- Some javascript expressions are not supported (yet).
+```
 
 ## Installation
 ```
