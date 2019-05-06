@@ -282,13 +282,13 @@ class ConvertJsExpression {
     public static function getObjectValue($obj, $path, $cacheTemplate) {
         foreach ($path as $key) {
             if (is_array($obj)) {
-                if (!isset($obj[$key])) {
+                if (!array_key_exists($key, $obj)) {
                     // return '';
                     return new Undefined($cacheTemplate);
                 }
                 $obj = $obj[$key];
             } else {
-                if (!isset($obj->$key)) {
+                if (!property_exists($obj, $key)) {
                     // return '';
                     return new Undefined($cacheTemplate);
                 }

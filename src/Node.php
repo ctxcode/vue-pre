@@ -287,12 +287,12 @@ class Node {
             $conditionString = $node->getAttribute('v-if');
             $node->removeAttribute('v-if');
             $phpExpr = ConvertJsExpression::convert($conditionString);
-            $this->settings->vif = $phpExpr;
+            $this->settings->vif = '\VuePre\ConvertJsExpression::toBool(' . $phpExpr . ')';
         } elseif ($node->hasAttribute('v-else-if')) {
             $conditionString = $node->getAttribute('v-else-if');
             $node->removeAttribute('v-else-if');
             $phpExpr = ConvertJsExpression::convert($conditionString);
-            $this->settings->velseif = $phpExpr;
+            $this->settings->velseif = '\VuePre\ConvertJsExpression::toBool(' . $phpExpr . ')';
         } elseif ($node->hasAttribute('v-else')) {
             $node->removeAttribute('v-else');
             $this->settings->velse = true;

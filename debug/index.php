@@ -19,6 +19,7 @@ $data = [
     'dynCompo' => 'mypartial',
     'myclass' => 'red',
     'style' => 'color:green',
+    'nulltest' => (object) ['value' => null],
 ];
 
 $vue = new \VuePre\Engine();
