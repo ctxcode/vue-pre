@@ -212,12 +212,12 @@ class Node {
         foreach (iterator_to_array($node->attributes) as $attribute) {
             $name = $attribute->name;
             if ($name === 'class' && !$this->settings->class) {
-                $node->setAttribute($name, '_VUEPRE_CLASS_');
                 $this->settings->class = "'" . ($attribute->value) . "'";
+                $node->setAttribute($name, '_VUEPRE_CLASS_');
             }
             if ($name === 'style' && !$this->settings->style) {
-                $node->setAttribute($name, '_VUEPRE_STYLE_');
                 $this->settings->style = "'" . ($attribute->value) . "'";
+                $node->setAttribute($name, '_VUEPRE_STYLE_');
             }
         }
     }

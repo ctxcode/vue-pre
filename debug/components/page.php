@@ -2,7 +2,7 @@
 <template>
     <layout :layout-data="layoutData">
         <!-- output && expressions -->
-        <div>{{ 420 }}</div>
+        <div class="class_test">{{ 420 }}</div>
         <div>1 {{ (typeof(myObject.test) == 'undefined') ? 'Undefined' : 'Defined' }}</div>
         <div>2 {{ (typeof(myObject.myProp) == 'undefined') ? 'Undefined' : 'Defined' }}</div>
         <div>3 {{ myObject.test ? 'Defined' : 'Undefined' }}</div>
@@ -18,9 +18,9 @@
         <div>{{ ([1,2,3].indexOf(2) === 1) ? 'Found' : 'Not found' }}</div>
         <div>{{ ([1, myVar,3].indexOf(myVar) === 1) ? 'Found' : 'Not found' }}</div>
 
-        <!-- <div :class="myclass">Class binding</div>
+        <div :class="myclass">Class binding</div>
         <div :class="toggle ? 'blue' : 'orange'">Class binding</div>
-        <div :style="style">Style binding</div> -->
+        <div :style="style">Style binding</div>
 
         Toggle template:
         <template v-if="toggle">On</template>
