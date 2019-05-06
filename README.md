@@ -232,6 +232,9 @@ $vue->getRenderedComponentNames();
 .indexOf()
 .length
 
+# JS Functions
+typeof()
+
 # Values: variables, strings, numbers, booleans, null, objects, arrays, functions
 
 # Comparisons
@@ -268,7 +271,7 @@ Currently i don't have many examples. More will be added later. Feel free to mak
 Note: Feel free to make an issue for these, so i can make them a prority. The only reason these are not implemented yet is because of low priority.
 
 - Attributes `v-model` `:value` `:selected` `:checked` `:style`
-- Binding non-binding attributes to components
+- Merge component class/style attributes with component template class/style attributes
 - Custom error handlers
 - Options: 
 	- `ignoreVariableNotFound` `ignoreMethodNotFound`
