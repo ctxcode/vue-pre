@@ -190,7 +190,7 @@ class Node {
             }
 
             if ($name === 'style') {
-                $currentClass = $node->getAttribute('style');
+                $currentStyle = $node->getAttribute('style');
                 $node->setAttribute($name, ' _VUEPRE_STYLE_');
                 $phpExpr = ConvertJsExpression::convert($attribute->value);
                 $this->settings->style = "'" . $currentStyle . " ' . " . $phpExpr;

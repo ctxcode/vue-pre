@@ -142,7 +142,7 @@ class CacheTemplate {
                 $options['class'] = $this->eval($node->class, $data);
             }
             if (isset($node->style)) {
-                $options['style'] = $this->eval($node->class, $data);
+                $options['style'] = $this->eval($node->style, $data);
             }
 
             return $this->engine->renderComponent($this->eval($node->isComponent, $data), $newData, $options);
