@@ -48,6 +48,10 @@ $vueInstance = $vue->getVueInstanceScript('#app', 'page', $data);
 .red{ color: red; }
 .blue{ color: blue; }
 .orange{ color: orange; }
+.c1{ border-top: 1px solid red; }
+.c2{ border-right: 1px solid green; }
+.c3{ border-bottom: 1px solid blue; }
+.c4{ border-left: 1px solid orange; }
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/vue"></script>

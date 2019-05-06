@@ -271,7 +271,6 @@ Currently i don't have many examples. More will be added later. Feel free to mak
 Note: Feel free to make an issue for these, so i can make them a prority. The only reason these are not implemented yet is because of low priority.
 
 - Attributes `v-model` `:value` `:selected` `:checked` `:style`
-- Merge component class/style attributes with component template class/style attributes
 - Custom error handlers
 - Options: 
 	- `ignoreVariableNotFound` `ignoreMethodNotFound`

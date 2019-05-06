@@ -9,7 +9,7 @@ return [
 ?>
 
 <template>
-    <div>
+    <div class="c3" :class="'c4'">
         <div v-html="title"></div>
 
         <slot name="header"></slot>

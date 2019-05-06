@@ -18,9 +18,9 @@
         <div>{{ ([1,2,3].indexOf(2) === 1) ? 'Found' : 'Not found' }}</div>
         <div>{{ ([1, myVar,3].indexOf(myVar) === 1) ? 'Found' : 'Not found' }}</div>
 
-        <div :class="myclass">Class binding</div>
+        <!-- <div :class="myclass">Class binding</div>
         <div :class="toggle ? 'blue' : 'orange'">Class binding</div>
-        <div :style="style">Style binding</div>
+        <div :style="style">Style binding</div> -->
 
         Toggle template:
         <template v-if="toggle">On</template>
@@ -43,10 +43,8 @@
 
         <div v-if="toggle">TEST TOGGLE</div>
 
-        <component :is="dynCompo" :title="title"></component>
-
         <!-- Components + slots -->
-        <mypartial :title="title">
+        <mypartial :title="title" class="c1" :class="'c2'">
             <template v-slot:header>
                 <h1>Here might be a page title</h1>
             </template>
@@ -55,6 +53,9 @@
             </div>
             <p>Rererererererer</p>
         </mypartial>
+
+        <component :is="dynCompo" :title="title"></component>
+
     </layout>
 </template>
 

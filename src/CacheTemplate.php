@@ -14,10 +14,22 @@ class CacheTemplate {
         $this->engine = $engine;
     }
 
-    public function render($data): String {
+    public function render($data, $options = []): String {
         $html = '';
 
-        foreach ($this->nodes as $node) {
+        $firstEl = true;
+        foreach ($this->nodes as $k => $node) {
+            if ($firstEl && $node->nodeType === 1) {
+                // First element
+                $firstEl = false;
+                // Merge class/style if in options
+                if (isset($options['class'])) {
+                    $node->class = "'" . ($options['class']) . " ' . " . (isset($node->class) ? $node->class : "''");
+                }
+                if (isset($options['style'])) {
+                    $node->style = "'" . ($options['style']) . " ' . " . (isset($node->style) ? $node->style : "''");
+                }
+            }
             $html .= $this->renderNode($node, $data);
         }
 
@@ -125,6 +137,14 @@ class CacheTemplate {
                     $newData[$k] = $this->eval($expr, $data);
                 }
             }
+
+            if (isset($node->class)) {
+                $options['class'] = $this->eval($node->class, $data);
+            }
+            if (isset($node->style)) {
+                $options['style'] = $this->eval($node->class, $data);
+            }
+
             return $this->engine->renderComponent($this->eval($node->isComponent, $data), $newData, $options);
         }
 

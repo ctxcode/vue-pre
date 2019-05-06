@@ -290,7 +290,7 @@ class Engine {
         return json_encode($template->export());
     }
 
-    private function renderCachedTemplate($file, $data) {
+    private function renderCachedTemplate($file, $data, $options = []) {
 
         set_error_handler(array($this, 'handleError'));
 
@@ -301,7 +301,7 @@ class Engine {
 
         $template = new CacheTemplate($this);
         $template->import($exportData);
-        $html = $template->render($data);
+        $html = $template->render($data, $options);
 
         restore_error_handler();
 
@@ -344,7 +344,7 @@ class Engine {
         }
 
         // Render cached template
-        return $this->renderCachedTemplate($cacheFile, $data);
+        return $this->renderCachedTemplate($cacheFile, $data, $options);
     }
 
     public function renderComponent($componentName, $data = [], $options = []) {
