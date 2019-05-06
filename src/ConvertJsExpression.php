@@ -110,7 +110,7 @@ class ConvertJsExpression {
                 }
             }
 
-            return $pre . '\VuePre\ConvertJsExpression::getObjectValue($' . $varName . ', [' . implode(", ", $path) . '])';
+            return $pre . '\VuePre\ConvertJsExpression::getObjectValue($' . $varName . ', [' . implode(", ", $path) . '], $this)';
         }
         // ( ... )
         if ($expr[0] === '(') {
@@ -132,7 +132,7 @@ class ConvertJsExpression {
         }
         // something ? this : that
         if ($this->match("($valueReg) *\? *($valueReg) *\: *($valueReg)", $expr, $match)) {
-            return $this->parseValue($match[1]) . ' ? ' . $this->parseValue($match[2]) . ' : ' . $this->parseValue($match[3]);
+            return '\VuePre\ConvertJsExpression::toBool(' . $this->parseValue($match[1]) . ') ? ' . $this->parseValue($match[2]) . ' : ' . $this->parseValue($match[3]);
         }
         // something === something && ... || ... + ...
         if (preg_match("/$opReg/", $expr) && $this->match("($valueReg)((?:$opReg$valueReg)+)", $expr, $match)) {
@@ -150,9 +150,6 @@ class ConvertJsExpression {
                         $result = "\VuePre\ConvertJsExpression::plus($result, $expr2)";
                     } else {
                         $result = $result . ' ' . $op . ' ' . $expr2;
-                        // var_dump($expr);
-                        // var_dump($match);
-                        // exit;
                     }
                 }
             }
@@ -168,7 +165,12 @@ class ConvertJsExpression {
                 $pre = '!';
             }
             $subExpr = substr($match[2], 1, -1);
-            return $pre . '$' . $match[1] . '(' . $this->parseValue($subExpr) . ')';
+            $isVar = true;
+            if ($match[1] == 'typeof') {
+                $isVar = false;
+                $match[1] = '\VuePre\ConvertJsExpression::typeof';
+            }
+            return $pre . ($isVar ? '$' : '') . $match[1] . '(' . $this->parseValue($subExpr) . ')';
         }
 
         // { ... }
@@ -261,6 +263,12 @@ class ConvertJsExpression {
 
     // Handle plus sign between 2 values
     public static function plus($val1, $val2) {
+        if (is_object($val1) && get_class($val1) == 'VuePre\Undefined') {
+            $val1 = 'undefined';
+        }
+        if (is_object($val2) && get_class($val2) == 'VuePre\Undefined') {
+            $val2 = 'undefined';
+        }
         if (is_string($val1)) {
             return $val1 . $val2;
         }
@@ -268,12 +276,24 @@ class ConvertJsExpression {
             return $val1 + $val2;
         }
 
-        return $val1 + $val2;
+        return $val1 . $val2;
     }
 
-    public static function getObjectValue($obj, $path) {
+    public static function getObjectValue($obj, $path, $cacheTemplate) {
         foreach ($path as $key) {
-            $obj = is_array($obj) ? $obj[$key] : $obj->$key;
+            if (is_array($obj)) {
+                if (!isset($obj[$key])) {
+                    // return '';
+                    return new Undefined($cacheTemplate);
+                }
+                $obj = $obj[$key];
+            } else {
+                if (!isset($obj->$key)) {
+                    // return '';
+                    return new Undefined($cacheTemplate);
+                }
+                $obj = $obj->$key;
+            }
         }
 
         return $obj;
@@ -303,6 +323,23 @@ class ConvertJsExpression {
         }
 
         throw new Exception('length() : variable was not a string or array');
+    }
+
+    public static function toBool($value) {
+        if (gettype($value) == 'object' && get_class($value) === 'VuePre\Undefined') {
+            return false;
+        }
+
+        return $value;
+    }
+
+    public static function typeof($value) {
+        $type = gettype($value);
+        if ($type == 'object' && get_class($value) === 'VuePre\Undefined') {
+            return 'undefined';
+        }
+
+        return $type;
     }
 
 }

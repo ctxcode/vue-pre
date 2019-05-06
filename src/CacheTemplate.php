@@ -160,8 +160,8 @@ class CacheTemplate {
     // Errors
     //////////////////
 
-    private $errorExpression = '';
-    private $errorLineNr = '?';
+    public $errorExpression = '';
+    public $errorLineNr = '?';
 
     public function eval($expr, $reallyUnrealisticVariableNameForVuePre) {
 

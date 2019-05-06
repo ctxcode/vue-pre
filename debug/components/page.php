@@ -3,6 +3,12 @@
     <layout :layout-data="layoutData">
         <!-- output && expressions -->
         <div>{{ 420 }}</div>
+        <div>1 {{ (typeof(myObject.test) == 'undefined') ? 'Undefined' : 'Defined' }}</div>
+        <div>2 {{ (typeof(myObject.myProp) == 'undefined') ? 'Undefined' : 'Defined' }}</div>
+        <div>3 {{ myObject.test ? 'Defined' : 'Undefined' }}</div>
+        <div>4 {{ myObject.myProp ? 'Defined' : 'Undefined' }}</div>
+        <div>5 {{ myObject.test }}</div>
+        <div>5 {{ myObject.test + 'x' }}</div>
         <div>{{ "'" }}</div>
         <div>{{ '"' }}</div>
         <div>{{ (1 > 2) ? '' : 'o' }}</div>
