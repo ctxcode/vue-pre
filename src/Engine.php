@@ -224,11 +224,19 @@ class Engine {
     }
 
     public function getVueInstanceScript($el, $componentName, $data) {
+
+        $jsData = [];
+        foreach ($data as $k => $v) {
+            if (!is_callable($v)) {
+                $jsData[$k] = $v;
+            }
+        }
+
         $html = '<script type="text/javascript">
     var VuePreApp = new Vue({
         el: "' . $el . '",
         data: function(){
-            return { componentData: ' . json_encode($data) . ' };
+            return { componentData: ' . json_encode($jsData) . ' };
         },
         template: \'<' . $componentName . ' :vue-pre-data="componentData"></' . $componentName . '>\',
     });

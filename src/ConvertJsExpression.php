@@ -170,7 +170,12 @@ class ConvertJsExpression {
                 $isVar = false;
                 $match[1] = '\VuePre\ConvertJsExpression::typeof';
             }
-            return $pre . ($isVar ? '$' : '') . $match[1] . '(' . $this->parseValue($subExpr) . ')';
+            $params = explode(',', $subExpr);
+            foreach ($params as $k => $param) {
+                $params[$k] = $this->parseValue($param);
+            }
+
+            return $pre . ($isVar ? '$' : '') . $match[1] . '(' . implode(', ', $params) . ')';
         }
 
         // { ... }

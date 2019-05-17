@@ -20,6 +20,7 @@ $data = [
     'myclass' => 'red',
     'style' => 'color:green',
     'nulltest' => (object) ['value' => null],
+    'multiParamFunc' => function ($nr1, $nr2) {return $nr1 + $nr2;},
 ];
 
 $vue = new \VuePre\Engine();

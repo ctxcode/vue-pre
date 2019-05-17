@@ -20,6 +20,7 @@
         <div>{{ ([1,2,3].indexOf(2) === 1) ? 'Found' : 'Not found' }}</div>
         <div>{{ ([1, myVar,3].indexOf(myVar) === 1) ? 'Found' : 'Not found' }}</div>
         <div>Global: {{ myGlobal }}</div>
+        <div>MultiParamFunc: {{ multiParamFunc(1, 2) }}</div>
 
         <div :class="myclass">Class binding</div>
         <div :class="toggle ? 'blue' : 'orange'">Class binding</div>
@@ -74,7 +75,13 @@
           tog: function(){
               this.toggle = !this.toggle;
               console.log(this.toggle);
+          },
+          multiParamFunc: function(nr1, nr2){
+              return nr1 + nr2;
           }
         },
+        created: function(){
+            console.log(this.multiParamFunc);
+        }
     });
 </script>
