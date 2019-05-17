@@ -209,6 +209,7 @@ $vue->getRenderedComponentNames();
 ```php
 ->setCacheDirectory(String $path)
 ->setComponentDirectory(String $path)
+->setGlobals(Array $globalVariables) // e.g. ['loggedIn' => true, 'user' => ['id'=>123, 'username'=>'TerryDavis']]
 ->renderHtml(String $html, Array $data)
 ->renderComponent(String $componentName, Array $data)
 

@@ -26,6 +26,7 @@ $vue = new \VuePre\Engine();
 $vue->disableCache = true;
 $vue->setCacheDirectory(__DIR__ . '/cache');
 $vue->setComponentDirectory(__DIR__ . '/components');
+$vue->setGlobals(['myGlobal' => 'HelloGlobe']);
 
 // $benchSeconds = 2;
 // $end = time() + $benchSeconds;
@@ -60,6 +61,14 @@ $vueInstance = $vue->getVueInstanceScript('#app', 'page', $data);
 <div id="app">
     <?php echo $html; ?>
 </div>
+
+<script>
+Vue.mixin({
+    computed: {
+        myGlobal: function(){ return 'HelloGlobe!'; },
+    }
+});
+</script>
 
 <?php echo $templates; ?>
 <?php echo $js; ?>

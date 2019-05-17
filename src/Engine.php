@@ -27,6 +27,7 @@ class Engine {
     public $errorCurrentTemplate = null;
 
     private $slotHtml = [];
+    private $globalData = [];
 
     private static $fileCache = [];
 
@@ -62,6 +63,14 @@ class Engine {
 
     public function getRenderedComponentNames() {
         return array_values($this->renderedComponentNames);
+    }
+
+    public function setGlobals(Array $data) {
+        $this->globalData = array_merge($this->globalData, $data);
+    }
+
+    public function getGlobals() {
+        return $this->globalData;
     }
 
     /////////////////////////
@@ -348,6 +357,8 @@ class Engine {
     }
 
     public function renderComponent($componentName, $data = [], $options = []) {
+
+        $data = array_merge($this->globalData, $data);
 
         if (!$this->componentDir) {
             throw new Exception('Trying to find component, but componentDirectory was not set');
