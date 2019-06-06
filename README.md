@@ -177,10 +177,10 @@ return [
 
 <script>
     Vue.component('homepage', {
-        props: ['vuePreData'],
+        props: ['layoutData', 'featuredProducts'],
         template: '#vue-template-homepage',
         data: function () {
-            return this.vuePreData;
+			return {};
         },
     });
 </script>

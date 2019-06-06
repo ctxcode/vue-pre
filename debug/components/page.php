@@ -24,7 +24,7 @@
 
         <div :class="myclass">Class binding</div>
         <div :class="toggle ? 'blue' : 'orange'">Class binding</div>
-        <div :style="style">Style binding</div>
+        <div :style="stylee">Style binding</div>
 
         Toggle template:
         <template v-if="toggle">On</template>
@@ -66,10 +66,10 @@
 <script type="text/javascript">
 
     Vue.component('page', {
-        props: ['vuePreData'],
+        props: ['layoutData', 'title', 'toggle', 'aclass', 'messages', 'myVar', 'myObject', 'dynCompo', 'myclass', 'stylee', 'nulltest', 'multiParamFunc'],
         template: '#vue-template-page',
         data: function () {
-            return this.vuePreData;
+            return this.pageData;
         },
         methods: {
           tog: function(){

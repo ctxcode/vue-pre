@@ -226,9 +226,11 @@ class Engine {
     public function getVueInstanceScript($el, $componentName, $data) {
 
         $jsData = [];
+        $bindings = '';
         foreach ($data as $k => $v) {
             if (!is_callable($v)) {
                 $jsData[$k] = $v;
+                $bindings .= ' :' . $k . '="componentData.' . $k . '"';
             }
         }
 
@@ -238,7 +240,7 @@ class Engine {
         data: function(){
             return { componentData: ' . json_encode($jsData) . ' };
         },
-        template: \'<' . $componentName . ' :vue-pre-data="componentData"></' . $componentName . '>\',
+        template: \'<' . $componentName . $bindings . '></' . $componentName . '>\',
     });
 </script>';
         return $html;
