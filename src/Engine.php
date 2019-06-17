@@ -235,12 +235,14 @@ class Engine {
         }
 
         $html = '<script type="text/javascript">
-    var VuePreApp = new Vue({
-        el: "' . $el . '",
-        data: function(){
-            return { componentData: ' . json_encode($jsData) . ' };
-        },
-        template: \'<' . $componentName . $bindings . '></' . $componentName . '>\',
+    document.addEventListener("DOMContentLoaded", function(event) {
+        var VuePreApp = new Vue({
+            el: "' . $el . '",
+            data: function(){
+                return { componentData: ' . json_encode($jsData) . ' };
+            },
+            template: \'<' . $componentName . $bindings . '></' . $componentName . '>\',
+        });
     });
 </script>';
         return $html;
