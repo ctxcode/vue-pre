@@ -235,7 +235,6 @@ class Engine {
         }
 
         $html = '<script type="text/javascript">
-    document.addEventListener("DOMContentLoaded", function(event) {
         var VuePreApp = new Vue({
             el: "' . $el . '",
             data: function(){
@@ -243,7 +242,6 @@ class Engine {
             },
             template: \'<' . $componentName . $bindings . '></' . $componentName . '>\',
         });
-    });
 </script>';
         return $html;
     }
