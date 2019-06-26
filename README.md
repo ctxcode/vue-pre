@@ -56,11 +56,9 @@ return [
 
 <template>
 	<div>
-		<div>{{ counter }}</div>
-		<div>
-			<button v-on:click="min"> - </button>
-			<button v-on:click="plus"> + </button>
-		</div>
+		<button v-on:click="min"> - </button>
+		{{ counter }}
+		<button v-on:click="plus"> + </button>
 	</div>
 </template>
 
