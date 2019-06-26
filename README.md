@@ -49,14 +49,18 @@ $vue->setComponentDirectory(__DIR__ . '/components');
 <?php
 return [
     'beforeRender' => function (&$data) {
-	    $data['message'] = 'Hello';
+	    $data['counter'] = 0;
     },
 ];
 ?>
 
 <template>
 	<div>
-		<p>{{ message }}</p>
+		<div>{{ counter }}</div>
+		<div>
+			<button v-on:click="min"> - </button>
+			<button v-on:click="plus"> + </button>
+		</div>
 	</div>
 </template>
 
@@ -65,10 +69,12 @@ return [
         template: '#vue-template-homepage',
         data: function () {
             return {
-	            message: 'Hello';
+				counter: 0,
             };
         },
         methods: {
+			plus: function(){ this.counter++; },
+			min: function(){ this.counter--; },
         }
     });
 </script>
