@@ -49,15 +49,17 @@ $vue->setComponentDirectory(__DIR__ . '/components');
 <?php
 return [
     'beforeRender' => function (&$data) {
-	    $data['message'] = 'Hello';
+        $data['counter'] = 0;
     },
 ];
 ?>
 
 <template>
-	<div>
-		<p>{{ message }}</p>
-	</div>
+    <div>
+        <button v-on:click="min"> - </button>
+        {{ counter }}
+        <button v-on:click="plus"> + </button>
+    </div>
 </template>
 
 <script>
@@ -65,10 +67,12 @@ return [
         template: '#vue-template-homepage',
         data: function () {
             return {
-	            message: 'Hello';
+                counter: 0,
             };
         },
         methods: {
+            plus: function(){ this.counter++; },
+            min: function(){ this.counter--; },
         }
     });
 </script>
@@ -78,39 +82,39 @@ return [
 
 ```php
 class View{
-	public static function render($view, $data = []){
-		// Normal PHP template engine
-		...
-		return $html;
-	}
-	public static function renderComponent($name, $data = []){
-		$vue = new \VuePre\Engine();
-		$vue->setCacheDirectory(Path::get('tmp'). '/cache');
-		$vue->setComponentDirectory(Path::get('views') . '/components');
+    public static function render($view, $data = []){
+        // Normal PHP template engine
+        ...
+        return $html;
+    }
+    public static function renderComponent($name, $data = []){
+        $vue = new \VuePre\Engine();
+        $vue->setCacheDirectory(Path::get('tmp'). '/cache');
+        $vue->setComponentDirectory(Path::get('views') . '/components');
 
-		$html = $vue->renderComponent($name, $data);
-		$templates = $vue->getTemplateScripts();
-		$js = $vue->getJsScripts();
-		$vueInstance = $vue->getVueInstanceScript('#app', $name, $data);
+        $html = $vue->renderComponent($name, $data);
+        $templates = $vue->getTemplateScripts();
+        $js = $vue->getJsScripts();
+        $vueInstance = $vue->getVueInstanceScript('#app', $name, $data);
 
-		$html = '<div id="app">'.$html.'</div>'.$templates.$js.$vueInstance;
+        $html = '<div id="app">'.$html.'</div>'.$templates.$js.$vueInstance;
 
-		return static::render('layouts/main.html', ['CONTENT' => $html];
-	}
+        return static::render('layouts/main.html', ['CONTENT' => $html];
+    }
 }
 
 class ViewController{
-	public function homepage(){
-		$data = [
-			// Dont put private data in here, because it's shared with javascript
-			'layoutData' => [
-				'authUser' => \AuthUser::getUser()->getPublicData(),
-			],
-			'featureProducts' => Product::where('featured', true)->limit(10)->get();
-		];
-		// Render <homepage> component
-		echo View::renderComponent('homepage', $data);
-	}
+    public function homepage(){
+        $data = [
+            // Dont put private data in here, because it's shared with javascript
+            'layoutData' => [
+                'authUser' => \AuthUser::getUser()->getPublicData(),
+            ],
+            'featureProducts' => Product::where('featured', true)->limit(10)->get();
+        ];
+        // Render <homepage> component
+        echo View::renderComponent('homepage', $data);
+    }
 }
 ```
 
@@ -118,12 +122,12 @@ class ViewController{
 <!-- views/layouts/main.html -->
 <!DOCTYPE>
 <html>
-	<head>
-		<script src="https://cdn.jsdelivr.net/npm/vue"></script>
-	</head>
-	<body>
-		{!! $CONTENT !!}
-	<body>
+    <head>
+        <script src="https://cdn.jsdelivr.net/npm/vue"></script>
+    </head>
+    <body>
+        {!! $CONTENT !!}
+    <body>
 </html>
 ```
 
@@ -139,13 +143,13 @@ return [
 ?>
 
 <template>
-	<div>
-		<header>...</header>
-		<main>
-			<slot></slot>
-		</main>
-		<footer>...</footer>
-	</div>
+    <div>
+        <header>...</header>
+        <main>
+            <slot></slot>
+        </main>
+        <footer>...</footer>
+    </div>
 </template>
 
 <script>
@@ -165,14 +169,14 @@ return [
 ?>
 
 <template>
-	<layout :layout-data="layoutData">
-		<div class="homepage">
-			<h1>Welcome</h1>
-			<p>...</p>
-			<h2>Featured products</h2>
-			<div v-for="product in featuredProducts"><h3>{{ product.name }}</h3></div>
-		</div>
-	</layout>
+    <layout :layout-data="layoutData">
+        <div class="homepage">
+            <h1>Welcome</h1>
+            <p>...</p>
+            <h2>Featured products</h2>
+            <div v-for="product in featuredProducts"><h3>{{ product.name }}</h3></div>
+        </div>
+    </layout>
 </template>
 
 <script>
@@ -180,7 +184,7 @@ return [
         props: ['layoutData', 'featuredProducts'],
         template: '#vue-template-homepage',
         data: function () {
-			return {};
+            return {};
         },
     });
 </script>
@@ -274,9 +278,9 @@ Note: Feel free to make an issue for these, so i can make them a prority. The on
 - Attributes `v-model` `:value` `:selected` `:checked` `:style`
 - Custom error handlers
 - Options: 
-	- `ignoreVariableNotFound` `ignoreMethodNotFound`
-	- `ignoreVariableNames` `ignoreMethodNames`
-	- `ignoreSubComponents` `ignoreSubComponentNames`
+    - `ignoreVariableNotFound` `ignoreMethodNotFound`
+    - `ignoreVariableNames` `ignoreMethodNames`
+    - `ignoreSubComponents` `ignoreSubComponentNames`
 
 ## Contributors
 
