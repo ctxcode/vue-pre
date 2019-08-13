@@ -69,12 +69,11 @@ class CacheTemplate {
         if (isset($node->vfor)) {
             $html = '';
             $items = $this->eval($node->vfor, $data);
-            $nodeCopy = json_decode(json_encode($node)); // Deepclone
+            $nodeCopy = json_decode(json_encode($node)); // Deep clone
             $nodeCopy->vfor = null;
             foreach ($items as $k => $v) {
                 if (isset($node->vforIndexName)) {$data[$node->vforIndexName] = $k;}
                 if (isset($node->vforAsName)) {$data[$node->vforAsName] = $v;}
-                $node->vfor = null;
                 $html .= $this->renderNode($nodeCopy, $data);
             }
             return $html;
