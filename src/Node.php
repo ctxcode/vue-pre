@@ -39,7 +39,7 @@ class Node {
             'bindedValues' => [],
             // Slots
             'vslot' => null,
-            'slotNodes' => [],
+            'slotNodes' => (object) [],
         ];
     }
 
@@ -128,7 +128,7 @@ class Node {
             }
         }
 
-        if (count($settings->slotNodes) > 0) {
+        if (count((array) $settings->slotNodes) > 0) {
             $result->slotNodes = (object) [];
             foreach ($settings->slotNodes as $k => $v) {
                 foreach ($settings->slotNodes->$k as $kk => $vv) {
