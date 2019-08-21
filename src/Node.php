@@ -206,6 +206,7 @@ class Node {
             // Add to bindings
             $phpExpr = ConvertJsExpression::convert($attribute->value);
             $this->settings->bindedValues[$name] = $phpExpr;
+            $node->setAttribute($name, '_VUEPRE_ATR_' . $name . '_ATREND_');
         }
 
         // Check for class/style

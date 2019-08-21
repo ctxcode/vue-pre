@@ -146,7 +146,18 @@ class CacheTemplate {
                 $options['style'] = $this->eval($node->style, $data);
             }
 
-            return $this->engine->renderComponent($this->eval($node->isComponent, $data), $newData, $options);
+            $componentName = $this->eval($node->isComponent, $data);
+            return $this->engine->renderComponent($componentName, $newData, $options);
+        }
+
+        if (isset($node->bindedValues)) {
+            foreach ($node->bindedValues as $k => $expr) {
+                $replace = '';
+                if (in_array($k, ['href'], true)) {
+                    $replace = $this->eval($expr, $data);
+                }
+                $html = str_replace('_VUEPRE_ATR_' . $k . '_ATREND_', $replace, $html);
+            }
         }
 
         // {{ }}

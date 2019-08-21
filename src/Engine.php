@@ -24,6 +24,8 @@ class Engine {
     public $disableCache = false;
     public $disableAutoScan = false;
 
+    public $ignoreComponentNames = [];
+
     public $errorCurrentTemplate = null;
 
     private $slotHtml = [];
@@ -367,6 +369,10 @@ class Engine {
     }
 
     public function renderComponent($componentName, $data = [], $options = []) {
+
+        if (in_array($componentName, $this->ignoreComponentNames, true)) {
+            return '';
+        }
 
         $data = array_merge($this->globalData, $data);
 
