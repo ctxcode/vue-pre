@@ -1,6 +1,9 @@
 
 <template>
+    <div>
+        <ignoretest>zzz</ignoretest>
     <layout :layout-data="layoutData">
+
         <!-- output && expressions -->
         <div>DONT SHOW: <span v-if="nulltest.value">THIS</span></div>
         <div>SHOW: <span v-if="nulltest.value == null">THIS</span></div>
@@ -61,6 +64,7 @@
         <component :is="dynCompo" :title="title"></component>
 
     </layout>
+    </div>
 </template>
 
 <script type="text/javascript">
