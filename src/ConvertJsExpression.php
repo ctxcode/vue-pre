@@ -25,7 +25,6 @@ class ConvertJsExpression {
         $expr = $this->expression;
 
         // dump('O: ' . $expr);
-
         $result = $this->parseValue($expr);
         // dump('R: ' . $result);
         return $result;
@@ -169,7 +168,6 @@ class ConvertJsExpression {
 
             if ($char == '.' && $lastExprType == 'value') {
                 // Either value
-                $lastValueExpr .= $char;
                 $expectValue = true;
                 continue;
             }
@@ -220,26 +218,6 @@ class ConvertJsExpression {
                         $i++;
                     }
 
-                    // Convert valueExpr to phpExpr and add to result
-                    $pathEx = explode('.', $path);
-
-                    if (empty($lastValueExpr)) {
-                        $varName = '$' . $pathEx[0];
-                        unset($pathEx[0]);
-                    } else {
-                        $varName = $lastValueExpr;
-                    }
-
-                    if (is_numeric($path)) {
-                        $valueExpr .= $path;
-                    } elseif (strtolower($path) == 'null') {
-                        $valueExpr .= 'null';
-                    } elseif (count($pathEx) > 0) {
-                        $valueExpr .= '(\VuePre\ConvertJsExpression::getObjectValue(' . $varName . ', "' . implode('.', $pathEx) . '", $this))';
-                    } else {
-                        $valueExpr .= '(' . $varName . ')';
-                    }
-
                     // Look ahead for function
                     $isFunc = false;
                     while (isset($expr[$i])) {
@@ -255,6 +233,41 @@ class ConvertJsExpression {
                         break;
                     }
 
+                    // Convert valueExpr to phpExpr and add to result
+                    $pathEx = explode('.', $path);
+                    $indexOfFunc = false;
+                    $lengthFunc = false;
+
+                    if (count($pathEx) > 0 && $pathEx[count($pathEx) - 1] === 'indexOf' && $isFunc) {
+                        $indexOfFunc = true;
+                        array_pop($pathEx);
+                    }
+                    if (count($pathEx) > 0 && $pathEx[count($pathEx) - 1] === 'length' && !$isFunc) {
+                        $lengthFunc = true;
+                        array_pop($pathEx);
+                    }
+
+                    if (empty($lastValueExpr)) {
+                        $varName = '$' . $pathEx[0];
+                        array_shift($pathEx);
+                    } else {
+                        $varName = $lastValueExpr;
+                    }
+
+                    if (is_numeric($path)) {
+                        $valueExpr .= $path;
+                    } elseif (strtolower($path) == 'null') {
+                        $valueExpr .= 'null';
+                    } elseif (count($pathEx) > 0) {
+                        $valueExpr .= '\VuePre\ConvertJsExpression::getObjectValue(' . $varName . ', "' . implode('.', $pathEx) . '", $this)';
+                    } else {
+                        $valueExpr .= $varName;
+                    }
+
+                    if ($lengthFunc) {
+                        $valueExpr .= '\VuePre\ConvertJsExpression::length(' . $valueExpr . ')';
+                    }
+
                     if ($isFunc) {
                         // Function
                         $params = [];
@@ -266,7 +279,12 @@ class ConvertJsExpression {
                         foreach ($params as $par) {
                             $phpParams[] = $this->parseValue($par);
                         }
-                        $valueExpr = '(' . $valueExpr . '(' . implode(',', $phpParams) . '))';
+
+                        if ($indexOfFunc) {
+                            $valueExpr = '\VuePre\ConvertJsExpression::indexOf(' . $valueExpr . ', ' . implode(',', $phpParams) . ')';
+                        } else {
+                            $valueExpr = '(' . $valueExpr . '(' . implode(',', $phpParams) . '))';
+                        }
                     }
 
                     $lastValueExpr = $valueExpr;
@@ -327,9 +345,16 @@ class ConvertJsExpression {
                 if ($op === '+') {
                     $plus = true;
                     $lastValueExpr = '\VuePre\ConvertJsExpression::plus(' . $lastValueExpr . ', ';
+                } elseif ($op === '?') {
+                    $lastValueExpr = '\VuePre\ConvertJsExpression::toBool(' . $lastValueExpr . ')';
+                    $lastValueExpr .= $op;
                 } else {
                     $lastValueExpr .= $op;
                 }
+
+                $newExpr .= $lastValueExpr;
+                $lastValueExpr = '';
+
                 continue;
             }
 

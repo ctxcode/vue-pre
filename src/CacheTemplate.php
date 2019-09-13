@@ -210,7 +210,8 @@ class CacheTemplate {
             $result = eval('return ' . $expr . ';');
         } catch (\Throwable $t) {
             dump('------------');
-            dd($expr);
+            dump($expr);
+            dd($t->getMessage());
         }
         restore_error_handler();
 
