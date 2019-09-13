@@ -206,7 +206,12 @@ class CacheTemplate {
 
         set_error_handler(array($this, 'evalError'));
         $this->errorExpression = $expr;
-        $result = eval('return ' . $expr . ';');
+        try {
+            $result = eval('return ' . $expr . ';');
+        } catch (\Throwable $t) {
+            dump('------------');
+            dd($expr);
+        }
         restore_error_handler();
 
         return $result;

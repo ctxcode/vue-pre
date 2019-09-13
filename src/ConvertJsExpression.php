@@ -24,7 +24,11 @@ class ConvertJsExpression {
 
         $expr = $this->expression;
 
-        return $this->parseValue($expr);
+        // dump('O: ' . $expr);
+
+        $result = $this->parseValue($expr);
+        // dump('R: ' . $result);
+        return $result;
     }
 
     public function parseValue($expr) {
@@ -37,208 +41,308 @@ class ConvertJsExpression {
 
         $length = strlen($expr);
 
-        $lastChar = null;
-        $expect = 'valueCharOrScope';
         $depth = 0;
         $newExpr = '';
-        $valueString = '';
-        $stringEndChar = null;
+        $lastExprType = null;
+        $lastValueExpr = '';
+
+        $expectValue = true;
+        $inStringChar = '';
+        $inString = false;
+        $inFuncParams = false;
+        $plus = false;
 
         $expectAtDepth = [];
 
-        $expectAtDepthAdd = function ($expect) use (&$depth, &$expectAtDepth) {
-            if (!isset($expectAtDepth[$depth])) {
-                $expectAtDepth[$depth] = [];
+        $getExprUntilClosingBracket = function ($start, $closeChar = ')') use (&$expr) {
+            $depth = 0;
+            $result = '';
+            $inString = false;
+            $inStringChar = '';
+            $openChar = $closeChar == ')' ? '(' : '[';
+            while (isset($expr[$start])) {
+                $c = $expr[$start];
+                $result .= $c;
+                if ($inString) {
+                    $prevChar = $start > 0 ? $expr[$start - 1] : null;
+                    if ($c === $inStringChar && $prevChar !== '/') {
+                        // End string
+                        $inString = false;
+                    }
+                    $start++;
+                    continue;
+                }
+                if (preg_match('/[\'\"]/', $c)) {
+                    $inString = true;
+                    $inStringChar = $c;
+                    $start++;
+                    continue;
+                }
+                if ($c == $openChar && !$inString) {
+                    $depth++;
+                }
+                if ($c == $closeChar && !$inString) {
+                    $depth--;
+                    if ($depth == 0) {
+                        break;
+                    }
+                }
+                $start++;
             }
-            $expectAtDepth[$depth][] = $expect;
-            $depth++;
+            if ($depth > 0 || $inString) {
+                throw new \Exception('Cannot find matching closing bracket ")"');
+            }
+            return $result;
         };
 
-        $expectAtDepthPop = function () use (&$depth, &$expectAtDepth) {
-            $depth--;
-            if (isset($expectAtDepth[$depth])) {
-                return array_pop($expectAtDepth[$depth]);
+        $getParamExpressions = function ($expr) {
+            $result = [];
+            $param = '';
+            $depth = 0;
+            $start = 0;
+            $inString = false;
+            $inStringChar = '';
+            while (isset($expr[$start])) {
+                $c = $expr[$start];
+                $param .= $c;
+                if ($inString) {
+                    $prevChar = $start > 0 ? $expr[$start - 1] : null;
+                    if ($c === $inStringChar && $prevChar !== '/') {
+                        // End string
+                        $inString = false;
+                    }
+                    $start++;
+                    continue;
+                }
+                if (preg_match('/[\'\"]/', $c)) {
+                    $inString = true;
+                    $inStringChar = $c;
+                    $start++;
+                    continue;
+                }
+                if ($c == '(' && !$inString) {
+                    $depth++;
+                }
+                if ($c == ')' && !$inString) {
+                    $depth--;
+                }
+                if ($c == ',' && $depth === 0) {
+                    $param = substr($param, 0, -1);
+                    $result[] = $param;
+                    $param = '';
+                }
+                $start++;
             }
-            return null;
+            $param = trim($param);
+            if (!empty($param)) {
+                $result[] = $param;
+            }
+            if ($depth > 0 || $inString) {
+                throw new \Exception('Cannot find function params closing bracket ")"');
+            }
+            return $result;
         };
 
         // Expect
         // ValueChar: variable, object property, boolean, number, function call
         // ValueCharOrScope: valueChar or open bracket
 
-        dump($expr);
-
         for ($i = 0; $i < $length; $i++) {
             $char = $expr[$i];
-            $prevChar = $i > 0 ? $expr[$i - 1] : null;
 
-            if ($expect == 'stringEnd') {
-                if ($char === $stringEndchar && $prevChar != '\\') {
-                    $stringEndChar = null;
-                    $expect = 'combine';
+            if ($inString) {
+                $prevChar = $i > 0 ? $expr[$i - 1] : null;
+                if ($char === $inStringChar && $prevChar !== '/') {
+                    // End string
+                    $inString = false;
+                    $expectValue = false;
+                    $lastExprType = 'value';
                 }
-                $newExpr .= $char;
+                $lastValueExpr .= $char;
                 continue;
             }
 
-            if ($expect == 'valueCharOrScope') {
-                if ($char == ' ') {
-                    $newExpr .= $char;
-                    continue;
-                }
-                if ($char == '(') {
-                    $expectAtDepthAdd('combine'); // ? + (, if in params), ;
-                    $expectAtDepthAdd(')');
-                    $newExpr .= $char;
-                    continue;
-                }
-                $expect = 'valueChar';
-            }
-
-            if ($expect == 'valueChar') {
-                if (!preg_match('/[a-zA-Z0-9_\.\"\'\[]/', $char)) {
-                    throw new \Exception('Invalid value char');
-                }
-                if ($char == '[') {
-                    $expectAtDepthAdd(',]');
-                }
-                if (preg_match('/[\"\']/', $char)) {
-                    $stringEndchar = $char;
-                    $newExpr .= $char;
-                    $expect = 'stringEnd';
-                    $newExpr .= $char;
-                    continue;
-                }
-                $newExpr .= $char;
-                $expect = 'valueEndChar';
+            if ($char == ' ') {
+                $lastValueExpr .= $char;
                 continue;
             }
-            if ($expect == 'valueEndChar') {
-                if (in_array($char, [' ', ')', '=', '!', '?', '+', '-', '*', '/', '.', '%', '>', '<', '[', ']', ','], true)) {
-                    if ($char == ')') {
-                        $expect = $expectAtDepthPop();
-                        if ($expect !== ')' && $expect !== ',)') {
-                            throw new \Exception('Unexpected ")"');
+
+            if ($char == '.' && $lastExprType == 'value') {
+                // Either value
+                $lastValueExpr .= $char;
+                $expectValue = true;
+                continue;
+            }
+
+            if ($expectValue) {
+                if (preg_match('/[\'\"]/', $char)) {
+                    $inString = true;
+                    $inStringChar = $char;
+                    $lastValueExpr .= $char;
+                    continue;
+                }
+                if (!preg_match('/[a-zA-Z0-9_\(,\[]/', $char)) {
+                    throw new \Exception('Unexpected character "' . $char . '"');
+                }
+                if ($char === '[') {
+                    // Array
+                    $newExpr .= $lastValueExpr;
+                    $lastValueExpr = '';
+
+                    $params = [];
+                    $paramsExpr = $getExprUntilClosingBracket($i, ']');
+                    $i += strlen($paramsExpr);
+                    $paramsExpr = substr($paramsExpr, 1, -1);
+                    $params = $getParamExpressions($paramsExpr);
+                    $phpParams = [];
+                    foreach ($params as $par) {
+                        $phpParams[] = $this->parseValue($par);
+                    }
+                    $lastValueExpr = '[' . implode(',', $phpParams) . ']';
+                    $i--;
+
+                    $lastExprType = 'value';
+                    $expectValue = false;
+                    continue;
+
+                } elseif ($char !== '(') {
+                    // Capture value string
+
+                    $valueExpr = '';
+
+                    $path = '';
+                    while (isset($expr[$i])) {
+                        if (!preg_match('/[a-zA-Z0-9_\.\$]/', $expr[$i])) {
+                            $lastExprType = 'variable';
+                            break;
                         }
-                        $expect = $expectAtDepthPop();
+                        $path .= $expr[$i];
+                        $i++;
                     }
-                    if ($char == '[') {
-                        $expectAtDepthAdd(',]');
+
+                    // Convert valueExpr to phpExpr and add to result
+                    $pathEx = explode('.', $path);
+
+                    if (empty($lastValueExpr)) {
+                        $varName = '$' . $pathEx[0];
+                        unset($pathEx[0]);
+                    } else {
+                        $varName = $lastValueExpr;
                     }
-                    if ($char == ']') {
-                        $expect = $expectAtDepthPop();
-                        if ($expect !== ',]') {
-                            throw new \Exception("Unexpected \"$char\"");
-                        }
+
+                    if (is_numeric($path)) {
+                        $valueExpr .= $path;
+                    } elseif (strtolower($path) == 'null') {
+                        $valueExpr .= 'null';
+                    } elseif (count($pathEx) > 0) {
+                        $valueExpr .= '(\VuePre\ConvertJsExpression::getObjectValue(' . $varName . ', "' . implode('.', $pathEx) . '", $this))';
+                    } else {
+                        $valueExpr .= '(' . $varName . ')';
                     }
-                    if ($char == ',') {
-                        $expect = $expectAtDepthPop();
-                        if ($expect !== ',]' && $expect !== ',)') {
-                            throw new \Exception("Unexpected \"$char\"");
-                        }
-                    }
-                    if ($char == '?') {
-                        $expectAtDepthAdd(':');
-                        $expect = 'valueCharOrScope';
-                    }
-                    if ($char == '=' || $char == '!') {
-                        $expect = 'equalSign';
-                    }
-                    if (in_array($char, ['+', '-', '*', '/', '%'], true)) {
-                        $expect = 'valueCharOrScope';
-                    }
-                    if (in_array($char, ['<', '>'], true)) {
-                        if ($expr[$i + 1] == '=') {
+
+                    // Look ahead for function
+                    $isFunc = false;
+                    while (isset($expr[$i])) {
+                        if ($expr[$i] == ' ') {
                             $i++;
-                            $newExpr .= $char . '=';
-                            $expect = 'valueCharOrScope';
                             continue;
                         }
+                        if ($expr[$i] == '(') {
+                            $isFunc = true;
+                            break;
+                        }
+                        $i--;
+                        break;
                     }
-                    $newExpr .= $char;
+
+                    if ($isFunc) {
+                        // Function
+                        $params = [];
+                        $paramsExpr = $getExprUntilClosingBracket($i);
+                        $i += strlen($paramsExpr);
+                        $paramsExpr = substr($paramsExpr, 1, -1);
+                        $params = $getParamExpressions($paramsExpr);
+                        $phpParams = [];
+                        foreach ($params as $par) {
+                            $phpParams[] = $this->parseValue($par);
+                        }
+                        $valueExpr = '(' . $valueExpr . '(' . implode(',', $phpParams) . '))';
+                    }
+
+                    $lastValueExpr = $valueExpr;
+                    //
+                    $expectValue = false;
                     continue;
                 }
-                if (!preg_match('/[a-zA-Z0-9_\.\(]/', $char)) {
-                    dump($prevChar);
-                    dump($char);
-                    throw new \Exception('Invalid value char');
-                }
-                if ($char == '(') {
-                    // .. valueString is a function
-                    $expectAtDepthAdd('combine');
-                    $expectAtDepthAdd(',)');
-                    $newExpr .= $char;
-                    continue;
-                }
-                $newExpr .= $char;
+            }
+
+            if ($char == '(') {
+                $bracketExpr = $getExprUntilClosingBracket($i);
+                $i += strlen($bracketExpr);
+                $bracketExpr = substr($bracketExpr, 1, -1);
+                $lastValueExpr .= '(' . $this->parseValue($bracketExpr) . ')';
+                $lastExprType = 'value';
+                $expectValue = false;
                 continue;
             }
-            if ($expect == 'equalSign') {
-                if ($char !== '=') {
-                    throw new \Exception('Expect a "=" character');
-                }
-                if ($expr[$i + 1] == '=') {
-                    $i++;
-                    $newExpr .= '=';
-                }
-                $expect = 'valueCharOrScope';
-                $newExpr .= $char;
-                continue;
+
+            if ($char == ')') {
+                throw new \Exception('Unexpected character "' . $char . '"');
             }
-            if ($expect == 'combine') {
-                if (!in_array($char, [' ', '+', '-', '*', '/', '.', '%', '=', '!', '?', ':', ')', '>', '<'], true)) {
-                    throw new \Exception('Unexpected char "' . $char . '"');
+
+            $operators = '/[=+\-<>?:*%!]/';
+            if (preg_match($operators, $char)) {
+                if (!in_array($lastExprType, ['variable', 'value'], true)) {
+                    throw new \Exception('Unexpected character "' . $char . '"');
                 }
-                if ($char == ' ') {
-                    $newExpr .= $char;
-                    continue;
+
+                $lastExprType = 'operator';
+                $expectValue = true;
+
+                if ($plus) {
+                    $lastValueExpr .= ')';
                 }
-                if ($char == '?') {
-                    $expectAtDepthAdd(':');
-                    $expect = 'valueCharOrScope';
-                    $newExpr .= $char;
-                    continue;
-                }
-                if ($char == ':') {
-                    $expect = $expectAtDepthPop();
-                    if ($expect !== ':') {
-                        throw new \Exception('Unexpected char ":"');
-                    }
-                    $newExpr .= $char;
-                    continue;
-                }
-                if ($char == ')') {
-                    $expect = $expectAtDepthPop();
-                    if ($expect !== ')') {
-                        throw new \Exception('Unexpected ")"');
-                    }
-                    $expect = $expectAtDepthPop();
-                    $newExpr .= $char;
-                    continue;
-                }
-                if ($char == '=' || $char == '!') {
-                    $expect = 'equalSign';
-                    $newExpr .= $char;
-                    continue;
-                }
-                if (in_array($char, ['<', '>'], true)) {
-                    if ($expr[$i + 1] == '=') {
+
+                $op = $char;
+
+                $nextChar = isset($expr[$i + 1]) ? $expr[$i + 1] : null;
+                if ($nextChar) {
+                    if ($nextChar == '=' && in_array($char, ['=', '-', '+', '*', '>', '<', '!'], true)) {
                         $i++;
-                        $newExpr .= $char . '=';
-                        $expect = 'valueCharOrScope';
-                        continue;
+                        $op .= $nextChar;
+                        if ($nextChar == '=' && (isset($expr[$i + 1]) ? $expr[$i + 1] : null) == '=') {
+                            $i++;
+                            $op .= '=';
+                        }
+                    } elseif ($nextChar == '-' && in_array($char, ['-'], true)) {
+                        $i++;
+                        $op .= $nextChar;
+                    } elseif ($nextChar == '+' && in_array($char, ['+'], true)) {
+                        $i++;
+                        $op .= $nextChar;
+                    } else {
                     }
                 }
 
-                $newExpr .= $char;
-                $expect = 'valueCharOrScope';
+                if ($op === '+') {
+                    $plus = true;
+                    $lastValueExpr = '\VuePre\ConvertJsExpression::plus(' . $lastValueExpr . ', ';
+                } else {
+                    $lastValueExpr .= $op;
+                }
                 continue;
             }
 
-            $newExpr .= $char;
+            throw new \Exception('Unexpected character "' . $char . '"');
         }
 
-        dump($newExpr);
+        if ($plus) {
+            $lastValueExpr .= ')';
+        }
+
+        $newExpr .= $lastValueExpr;
+
+        return $newExpr;
     }
 
     public function _parseValue($expr) {
@@ -499,6 +603,7 @@ class ConvertJsExpression {
     }
 
     public static function getObjectValue($obj, $path, $cacheTemplate) {
+        $path = explode('.', $path);
         foreach ($path as $key) {
             if (is_array($obj)) {
                 if (!array_key_exists($key, $obj)) {

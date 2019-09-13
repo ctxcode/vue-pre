@@ -34,6 +34,15 @@ class Engine {
     private static $fileCache = [];
 
     public function __construct() {
+
+        $this->globalData['typeof'] = function ($value) {
+            $type = gettype($value);
+            if ($type == 'object' && get_class($value) === 'VuePre\Undefined') {
+                return 'undefined';
+            }
+
+            return $type;
+        };
     }
 
     /////////////////////////
