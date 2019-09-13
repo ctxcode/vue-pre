@@ -5,7 +5,7 @@
     <layout :layout-data="layoutData">
 
         <!-- output && expressions -->
-        <div>DONT SHOW: <span v-if="nulltest.value">THIS</span></div>
+        <div>DONT SHOW: <span v-if="x nulltest.value">THIS</span></div>
         <div>SHOW: <span v-if="nulltest.value == null">THIS</span></div>
         <div class="class_test">{{ 420 }}</div>
         <div>1 {{ (typeof(myObject.test) == 'undefined') ? 'Undefined' : 'Defined' }}</div>
