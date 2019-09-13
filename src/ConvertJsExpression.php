@@ -309,7 +309,7 @@ class ConvertJsExpression {
                 throw new \Exception('Unexpected character "' . $char . '" in expression "' . $this->expression . '"');
             }
 
-            $operators = '/[=+\-<>?:*%!]/';
+            $operators = '/[=+\-<>?:*%!&|]/';
             if (preg_match($operators, $char)) {
                 if (!in_array($lastExprType, ['variable', 'value'], true)) {
                     throw new \Exception('Unexpected character "' . $char . '" in expression "' . $this->expression . '"');
@@ -341,6 +341,12 @@ class ConvertJsExpression {
                         $i++;
                         $op .= $nextChar;
                     } elseif ($nextChar == '+' && in_array($char, ['+'], true)) {
+                        $i++;
+                        $op .= $nextChar;
+                    } elseif ($nextChar == '&' && in_array($char, ['&'], true)) {
+                        $i++;
+                        $op .= $nextChar;
+                    } elseif ($nextChar == '|' && in_array($char, ['|'], true)) {
                         $i++;
                         $op .= $nextChar;
                     } else {
