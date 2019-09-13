@@ -9,6 +9,7 @@
         <div>DONT SHOW: <span v-if="true && false">THIS</span></div>
         <div>SHOW: <span v-if="nulltest.value == null">THIS</span></div>
         <div>SHOW: <span v-if="true || false">THIS</span></div>
+        <div>Class: {{ { test: true ? 'true' : 'false' } }}</div>
         <div class="class_test">{{ 420 }}</div>
         <div>1 {{ (typeof(myObject.test) == 'undefined') ? 'Undefined' : 'Defined' }}</div>
         <div>2 {{ (typeof(myObject.myProp) == 'undefined') ? 'Undefined' : 'Defined' }}</div>
@@ -29,6 +30,8 @@
 
         <div :class="myclass">Class binding</div>
         <div :class="toggle ? 'blue' : 'orange'">Class binding</div>
+        <div :class="{ blue: toggle }">Class binding using object</div>
+        <div :class="{ blue: !toggle }">Class binding using object</div>
         <div :style="stylee">Style binding</div>
 
         Toggle template:

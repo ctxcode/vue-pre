@@ -58,7 +58,12 @@ class ConvertJsExpression {
             $result = '';
             $inString = false;
             $inStringChar = '';
-            $openChar = $closeChar == ')' ? '(' : '[';
+            $openChars = [
+                ']' => '[',
+                ')' => '(',
+                '}' => '{',
+            ];
+            $openChar = $openChars[$closeChar];
             while (isset($expr[$start])) {
                 $c = $expr[$start];
                 $result .= $c;
@@ -179,7 +184,7 @@ class ConvertJsExpression {
                     $lastValueExpr .= $char;
                     continue;
                 }
-                if (!preg_match('/[a-zA-Z0-9_\(,\[\-]/', $char)) {
+                if (!preg_match('/[a-zA-Z0-9_\(,\[\-\{\!]/', $char)) {
                     throw new \Exception('Unexpected character "' . $char . '" in expression "' . $this->expression . '"');
                 }
                 if ($char === '[') {
@@ -197,6 +202,43 @@ class ConvertJsExpression {
                         $phpParams[] = $this->parseValue($par);
                     }
                     $lastValueExpr = '[' . implode(',', $phpParams) . ']';
+                    $i--;
+
+                    $lastExprType = 'value';
+                    $expectValue = false;
+                    continue;
+
+                } elseif ($char === '{') {
+                    // Objects
+                    $newExpr .= $lastValueExpr;
+                    $lastValueExpr = '';
+
+                    $params = [];
+                    $paramsExpr = $getExprUntilClosingBracket($i, '}');
+                    $i += strlen($paramsExpr);
+                    $paramsExpr = substr($paramsExpr, 1, -1);
+                    $params = $getParamExpressions($paramsExpr);
+                    $lastValueExpr = '\VuePre\ConvertJsExpression::' . ($this->inAttribute ? 'handleArrayInAttribute' : 'handleArrayToString') . '([ ';
+                    $first = true;
+                    foreach ($params as $par) {
+                        // Get & Remove key
+                        $index = strpos($par, ':');
+                        if ($index === false) {
+                            throw new \Exception('Cant find object key in expression "' . $this->expression . '"');
+                        }
+                        $key = substr($par, 0, $index);
+                        if (empty($key)) {
+                            throw new \Exception('Cant find object key in expression "' . $this->expression . '"');
+                        }
+                        $par = substr($par, $index + 1);
+                        $phpParam = $this->parseValue($par);
+                        if (!$first) {
+                            $lastValueExpr .= ',';
+                        }
+                        $lastValueExpr .= '"' . $key . '" => ' . $phpParam;
+                        $first = false;
+                    }
+                    $lastValueExpr .= '])';
                     $i--;
 
                     $lastExprType = 'value';
@@ -507,6 +549,19 @@ class ConvertJsExpression {
         }
 
         return $type;
+    }
+
+    public static function handleArrayInAttribute($array) {
+        $classes = [];
+        foreach ($array as $className => $value) {
+            if ($value) {
+                $classes[] = $className;
+            }
+        }
+        return implode(' ', $classes);
+    }
+    public static function handleArrayToString($array) {
+        return json_encode($array);
     }
 
 }

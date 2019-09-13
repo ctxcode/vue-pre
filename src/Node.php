@@ -184,7 +184,7 @@ class Node {
             if ($name === 'class') {
                 $currentClass = $node->getAttribute('class');
                 $node->setAttribute($name, '_VUEPRE_CLASS_');
-                $phpExpr = ConvertJsExpression::convert($attribute->value);
+                $phpExpr = ConvertJsExpression::convert($attribute->value, ['inAttribute' => true]);
                 $this->settings->class = "'" . $currentClass . " ' . (" . $phpExpr . ")";
                 continue;
             }
@@ -192,7 +192,7 @@ class Node {
             if ($name === 'style') {
                 $currentStyle = $node->getAttribute('style');
                 $node->setAttribute($name, '_VUEPRE_STYLE_');
-                $phpExpr = ConvertJsExpression::convert($attribute->value);
+                $phpExpr = ConvertJsExpression::convert($attribute->value, ['inAttribute' => true]);
                 $this->settings->style = "'" . $currentStyle . " ' . (" . $phpExpr . ")";
                 continue;
             }
