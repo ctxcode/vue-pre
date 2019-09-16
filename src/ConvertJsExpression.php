@@ -24,13 +24,272 @@ class ConvertJsExpression {
 
         $expr = $this->expression;
 
-        // dump('O: ' . $expr);
+        dump('O: ' . $expr);
         $result = $this->parseValue($expr);
-        // dump('R: ' . $result);
+        dump('R: ' . $result);
         return $result;
     }
 
-    public function parseValue($expr) {
+    public function parseValue($expr, $inParams = false) {
+
+        $expr = trim($expr);
+
+        if ($expr === '') {
+            return '';
+        }
+
+        $newExpr = '';
+        $length = strlen($expr);
+        $expects = [['value']];
+        $inString = false;
+        $inStringEndChar = null;
+
+        $getString = function ($i, $endChar) use (&$expr) {
+            $prevChar = $endChar;
+            $string = $endChar;
+            $i++;
+            while (isset($expr[$i])) {
+                $char = $expr[$i];
+                if ($char === $endChar && $prevChar !== '\\') {
+                    break;
+                }
+                $string .= $char;
+                $prevChar = $char;
+                $i++;
+            }
+            $string .= $endChar;
+            return $string;
+        };
+
+        $parseBetween = function ($i, $openChar, $endChar, $allowCommas = false, $isObject = false) use (&$expr) {
+            $startIndex = $i;
+            $depth = 0;
+            $subExpr = '';
+            $subExpressions = [];
+            $i++;
+            while (isset($expr[$i])) {
+                $subChar = $expr[$i];
+
+                if ($allowCommas) {
+                    if ($subChar == ',' && $depth === 0) {
+                        $subExpressions[] = $subExpr;
+                        $subExpr = '';
+                        $i++;
+                        continue;
+                    }
+                }
+
+                if ($depth === 0 && $subChar == $endChar) {
+                    $subExpressions[] = $subExpr;
+                    $phpExpressions = [];
+                    if ($isObject) {
+                        $result = '[';
+                        foreach ($subExpressions as $subEx) {
+
+                            // Get Key
+                            $signIndex = strpos($subEx, ':');
+                            if ($signIndex === false) {
+                                throw new \Exception('Invalid object key "' . $subEx . '"');
+                            }
+                            $key = substr($subEx, 0, $signIndex);
+                            if (empty($key) || !preg_match('/[a-zA-Z0-9_]/', $key)) {
+                                throw new \Exception('Invalid object key syntax "' . $subEx . '"');
+                            }
+
+                            $result .= '"' . trim($key) . '" => ';
+                            $result .= $this->parseValue(substr($subEx, $signIndex + 1));
+                        }
+                        $result .= ']';
+                        return (object) ['length' => $i - $startIndex + 1, 'expr' => $result];
+                    } else {
+                        foreach ($subExpressions as $subEx) {
+                            $phpExpressions[] = $this->parseValue($subEx);
+                        }
+                        return (object) ['length' => $i - $startIndex + 1, 'expr' => $openChar . implode(',', $phpExpressions) . $endChar];
+                    }
+
+                }
+
+                $subExpr .= $subChar;
+
+                if ($subChar == $openChar) {
+                    $depth++;
+                }
+
+                if ($subChar == $endChar) {
+                    $depth--;
+                }
+
+                $i++;
+            }
+            throw new \Exception('Could not find closing character "' . $endChar . '"');
+        };
+
+        for ($i = 0; $i < $length; $i++) {
+            $char = $expr[$i];
+
+            if ($char == ' ') {
+                $newExpr .= ' ';
+                continue;
+            }
+
+            $expect = array_pop($expects);
+
+            $foundExpectation = false;
+
+            foreach ($expect as $ex) {
+
+                //////////////////////////
+
+                if ($ex == 'value') {
+
+                    // Valid starting characters
+                    if (preg_match('/[a-zA-Z0-9_\!\[\{\(\"\']/', $char)) {
+                        $dollarPos = null;
+                        $valueExpr = '';
+                        $funcName = '';
+
+                        if ($char == '(') {
+                            // (...)
+                            $subExpr = $parseBetween($i, '(', ')', false, false);
+                            $valueExpr .= $subExpr->expr;
+                            $i += $subExpr->length;
+                        }
+
+                        if (preg_match('/[\'\"]/', $char)) {
+                            $str = $getString($i, $char);
+                            $valueExpr .= $str;
+                            $i += strlen($str);
+                        }
+
+                        if ($char == '{') {
+                            // Object
+                            $subExpr = $parseBetween($i, '{', '}', true, true);
+                            if ($this->inAttribute) {
+                                $valueExpr .= '\VuePre\ConvertJsExpression::handleArrayInAttribute(';
+                            }
+                            $valueExpr .= $subExpr->expr;
+                            if ($this->inAttribute) {
+                                $valueExpr .= ')';
+                            }
+                            $i += $subExpr->length;
+                        }
+
+                        if ($char == '[') {
+                            // Array
+                            $subExpr = $parseBetween($i, '[', ']', true, false);
+                            $valueExpr .= $subExpr->expr;
+                            $i += $subExpr->length;
+                        }
+
+                        if ($char == '!') {
+                            $valueExpr .= '!';
+                            $i++;
+                        }
+
+                        while (isset($expr[$i])) {
+                            $subChar = $expr[$i];
+                            if (!preg_match('/[a-zA-Z0-9_\.\-\(\[]/', $subChar)) {
+                                break;
+                            }
+
+                            if ($subChar == '.') {
+                                $funcName = '';
+                                $valueExpr .= '->';
+                                $i++;
+                                continue;
+                            }
+
+                            if ($subChar == '(') {
+                                // Function params
+                                if ($funcName == '') {
+                                    break (2);
+                                }
+                                $subExpr = $parseBetween($i, '(', ')', true, false);
+                                if ($funcName == 'indexOf') {
+                                    $valueExpr = '\VuePre\ConvertJsExpression::indexOf(' . $valueExpr . ', ' . $subExpr->expr . ')';
+                                } else {
+                                    $valueExpr .= $subExpr->expr;
+                                }
+                                $i += $subExpr->length;
+                            } elseif ($subChar == '[') {
+                                // Object key (no commas allowed)
+                                $subExpr = $parseBetween($i, '[', ']', false, false);
+                                $valueExpr .= $subExpr->expr;
+                                $i += $subExpr->length;
+                            } else {
+                                // Var name
+                                if ($dollarPos === null) {
+                                    $dollarPos = strlen($valueExpr);
+                                    $valueExpr .= '$';
+                                }
+                                $valueExpr .= $subChar;
+                                $funcName .= $subChar;
+                            }
+
+                            $i++;
+                        }
+                        // if (isset($expr[$i])) {
+                        $i--;
+                        // }
+
+                        if (strlen($valueExpr) > 0) {
+                            $checkExpr = substr($valueExpr, 1);
+                            if (in_array(strtolower($checkExpr), ['true', 'false', 'null'], true)) {
+                                $valueExpr = $checkExpr;
+                            }
+                            if (is_numeric($checkExpr)) {
+                                $valueExpr = $checkExpr;
+                            }
+                        }
+
+                        $newExpr .= $valueExpr;
+                        $expects[] = ['operator'];
+                        $foundExpectation = true;
+                        break;
+                    }
+
+                }
+
+                //////////////////////////
+
+                if ($ex == 'operator') {
+                    $operator = '';
+                    $operators = '/[=+\-<>?:*%!&|]/';
+                    while (isset($expr[$i]) && preg_match($operators, $expr[$i])) {
+                        $operator .= $expr[$i];
+                        $i++;
+                    }
+                    $i--;
+
+                    $allowed = ['==', '===', '!=', '!==', '<=', '>=', '<', '>', '&&', '||', '?', ':', '+', '+=', '-', '-=', '*', '*=', '/', '/='];
+
+                    if (empty($operator)) {
+                        throw new \Exception('Expected an operator, but instead found "' . $char . '" at index: ' . $i);
+                    }
+
+                    if (!in_array($operator, $allowed, true)) {
+                        throw new \Exception('Unexpected operator "' . $operator . '"');
+                    }
+
+                    $newExpr .= $operator;
+                    $expects[] = ['value'];
+                    $foundExpectation = true;
+                }
+
+                //////////////////////////
+
+            }
+
+            if (!$foundExpectation) {
+                throw new \Exception('Unexpected character "' . $char . '"');
+            }
+        }
+
+        return $newExpr;
+    }
+
+    public function _parseValue($expr) {
 
         $expr = trim($expr);
 
