@@ -24,9 +24,9 @@ class ConvertJsExpression {
 
         $expr = $this->expression;
 
-        dump('O: ' . $expr);
+        // dump('O: ' . $expr);
         $result = $this->parseValue($expr);
-        dump('R: ' . $result);
+        // dump('R: ' . $result);
         return $result;
     }
 
@@ -43,6 +43,7 @@ class ConvertJsExpression {
         $expects = [['value']];
         $inString = false;
         $inStringEndChar = null;
+        $plus = false;
 
         $getString = function ($i, $endChar) use (&$expr) {
             $prevChar = $endChar;
@@ -149,6 +150,9 @@ class ConvertJsExpression {
                         $valueExpr = '';
                         $funcName = '';
 
+                        $pathOfExpr = '';
+                        $path = '';
+
                         if ($char == '(') {
                             // (...)
                             $subExpr = $parseBetween($i, '(', ')', false, false);
@@ -167,11 +171,11 @@ class ConvertJsExpression {
                             $subExpr = $parseBetween($i, '{', '}', true, true);
                             if ($this->inAttribute) {
                                 $valueExpr .= '\VuePre\ConvertJsExpression::handleArrayInAttribute(';
+                            } else {
+                                $valueExpr .= '\VuePre\ConvertJsExpression::handleArrayToString(';
                             }
                             $valueExpr .= $subExpr->expr;
-                            if ($this->inAttribute) {
-                                $valueExpr .= ')';
-                            }
+                            $valueExpr .= ')';
                             $i += $subExpr->length;
                         }
 
@@ -195,7 +199,11 @@ class ConvertJsExpression {
 
                             if ($subChar == '.') {
                                 $funcName = '';
-                                $valueExpr .= '->';
+                                if (empty($pathOfExpr)) {
+                                    $pathOfExpr = $valueExpr;
+                                } else {
+                                    $path .= '.';
+                                }
                                 $i++;
                                 continue;
                             }
@@ -204,6 +212,19 @@ class ConvertJsExpression {
                                 // Function params
                                 if ($funcName == '') {
                                     break (2);
+                                }
+                                if (!empty($pathOfExpr)) {
+                                    if ($funcName == 'indexOf') {
+                                        $path = substr($path, 0, -8);
+                                        if (!$path) {$path = '';}
+                                    }
+                                    if (!empty($path)) {
+                                        $valueExpr = '\VuePre\ConvertJsExpression::getObjectValue(' . $pathOfExpr . ', "' . $path . '", $this)';
+                                    } else {
+                                        $valueExpr = $pathOfExpr;
+                                    }
+                                    $pathOfExpr = '';
+                                    $path = '';
                                 }
                                 $subExpr = $parseBetween($i, '(', ')', true, false);
                                 if ($funcName == 'indexOf') {
@@ -223,15 +244,21 @@ class ConvertJsExpression {
                                     $dollarPos = strlen($valueExpr);
                                     $valueExpr .= '$';
                                 }
-                                $valueExpr .= $subChar;
+                                if (!empty($pathOfExpr)) {
+                                    $path .= $subChar;
+                                } else {
+                                    $valueExpr .= $subChar;
+                                }
                                 $funcName .= $subChar;
                             }
 
                             $i++;
                         }
-                        // if (isset($expr[$i])) {
                         $i--;
-                        // }
+
+                        if (!empty($pathOfExpr)) {
+                            $valueExpr = '\VuePre\ConvertJsExpression::getObjectValue(' . $pathOfExpr . ', "' . $path . '", $this)';
+                        }
 
                         if (strlen($valueExpr) > 0) {
                             $checkExpr = substr($valueExpr, 1);
@@ -244,6 +271,12 @@ class ConvertJsExpression {
                         }
 
                         $newExpr .= $valueExpr;
+
+                        if ($plus) {
+                            $newExpr .= ')';
+                            $plus = false;
+                        }
+
                         $expects[] = ['operator'];
                         $foundExpectation = true;
                         break;
@@ -272,7 +305,15 @@ class ConvertJsExpression {
                         throw new \Exception('Unexpected operator "' . $operator . '"');
                     }
 
-                    $newExpr .= $operator;
+                    if ($operator === '+') {
+                        $plus = true;
+                        $newExpr = '\VuePre\ConvertJsExpression::plus(' . $newExpr . ', ';
+                    } elseif ($operator === '?') {
+                        $newExpr = '\VuePre\ConvertJsExpression::toBool(' . $newExpr . ') ?';
+                    } else {
+                        $newExpr .= $operator;
+                    }
+
                     $expects[] = ['value'];
                     $foundExpectation = true;
                 }
