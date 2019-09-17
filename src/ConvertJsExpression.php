@@ -223,7 +223,12 @@ class ConvertJsExpression {
                                         if (!$path) {$path = '';}
                                     }
                                     if (!empty($path)) {
-                                        $valueExpr = '\VuePre\ConvertJsExpression::getObjectValue(' . $pathOfExpr . ', "' . $path . '", $this)';
+                                        $pre = '';
+                                        if ($pathOfExpr[0] === '!') {
+                                            $pre = '!';
+                                            $pathOfExpr = substr($pathOfExpr, 1);
+                                        }
+                                        $valueExpr = $pre . '\VuePre\ConvertJsExpression::getObjectValue(' . $pathOfExpr . ', "' . $path . '", $this)';
                                     } else {
                                         $valueExpr = $pathOfExpr;
                                     }
@@ -261,7 +266,12 @@ class ConvertJsExpression {
                         $i--;
 
                         if (!empty($pathOfExpr)) {
-                            $valueExpr = '\VuePre\ConvertJsExpression::getObjectValue(' . $pathOfExpr . ', "' . $path . '", $this)';
+                            $pre = '';
+                            if ($pathOfExpr[0] === '!') {
+                                $pre = '!';
+                                $pathOfExpr = substr($pathOfExpr, 1);
+                            }
+                            $valueExpr = $pre . '\VuePre\ConvertJsExpression::getObjectValue(' . $pathOfExpr . ', "' . $path . '", $this)';
                         }
 
                         if (strlen($valueExpr) > 0) {
