@@ -411,6 +411,10 @@ class ConvertJsExpression {
     public static function getObjectValue($obj, $path, $cacheTemplate) {
         $path = explode('.', $path);
         foreach ($path as $key) {
+            if ($key === 'length') {
+                $obj = static::length($obj);
+                continue;
+            }
             if (is_array($obj)) {
                 if (!array_key_exists($key, $obj)) {
                     // return '';
