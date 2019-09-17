@@ -198,12 +198,16 @@ class ConvertJsExpression {
                             }
 
                             if ($subChar == '.') {
-                                $funcName = '';
-                                if (empty($pathOfExpr)) {
-                                    $pathOfExpr = $valueExpr;
+                                if (empty($pathOfExpr) && is_numeric($funcName)) {
+                                    $valueExpr .= '.';
                                 } else {
-                                    $path .= '.';
+                                    if (empty($pathOfExpr)) {
+                                        $pathOfExpr = $valueExpr;
+                                    } else {
+                                        $path .= '.';
+                                    }
                                 }
+                                $funcName = '';
                                 $i++;
                                 continue;
                             }

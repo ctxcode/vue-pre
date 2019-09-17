@@ -5,6 +5,8 @@
     <layout :layout-data="layoutData">
 
         <!-- output && expressions -->
+        <div>DoubleTest: <span>{{ { opacity: true ? 1 : 0.5 } }}</span></div>
+        <div>DoubleTest: <span>{{ { opacity: false ? 1 : 0.5 } }}</span></div>
         <div>DONT SHOW: <span v-if="nulltest.value">THIS</span></div>
         <div>DONT SHOW: <span v-if="true && false">THIS</span></div>
         <div>SHOW: <span v-if="nulltest.value == null">THIS</span></div>
