@@ -344,46 +344,6 @@ class ConvertJsExpression {
         return $newExpr;
     }
 
-    public function match($regx, $expr, &$match, $options = []) {
-
-        // Recursive definitions
-        $exprReg = '(?:(?<exprReg>\((?:[^\(\)]|(?:\g<exprReg>))*\))){0}';
-        $arrReg = '(?:(?<arrReg>\[(?:[^\[\]]|(?:\g<arrReg>))*\])){0}';
-        $objReg = '(?:(?<objReg>\{(?:[^\{\}]|(?:\g<objReg>))*\})){0}';
-
-        $pre = "$exprReg$arrReg$objReg";
-        $regex = "/^(?J)$pre$regx$/";
-        $regexAll = "/(?J)$pre$regx/";
-
-        if (isset($options['debug']) && $options['debug']) {
-            echo '<div>' . $expr . '</div>';
-            echo htmlspecialchars($regex);
-            exit;
-        }
-
-        if (isset($options['all']) && $options['all']) {
-            $result = preg_match_all($regexAll, $expr, $matches);
-            $match = [];
-            foreach ($matches as $k => $v) {
-                if (!is_int($k)) {continue;}
-                $v = array_values(array_filter($v, '\VuePre\ConvertJsExpression::filterRegexResults'));
-                if (count($v) > 0) {
-                    $match[] = $v;
-                }
-            }
-        } else {
-            $result = preg_match($regex, $expr, $match);
-            $match = array_values(array_filter($match, '\VuePre\ConvertJsExpression::filterRegexResults'));
-        }
-
-        return $result;
-    }
-
-    public static function filterRegexResults($res) {
-        if ($res === '') {return false;}
-        return true;
-    }
-
     public function fail() {
         throw new \Exception('VuePre doesnt understand this JS expression: "' . $this->expression . '"', 100);
     }
