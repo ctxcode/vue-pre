@@ -46,8 +46,8 @@ class ConvertJsExpression {
         $newExpr = '';
         $length = strlen($expr);
         $expects = [['value']];
-        $inString = false;
-        $inStringEndChar = null;
+        // $inString = false;
+        // $inStringEndChar = null;
         $plus = false;
 
         $getString = function ($i, $endChar) use (&$expr) {
@@ -67,7 +67,7 @@ class ConvertJsExpression {
             return $string;
         };
 
-        $parseBetween = function ($i, $openChar, $endChar, $allowCommas = false, $isObject = false) use (&$expr) {
+        $parseBetween = function ($i, $openChar, $endChar, $allowCommas = false, $isObject = false) use (&$expr, &$getString) {
             $startIndex = $i;
             $depth = 0;
             $subExpr = '';
@@ -114,6 +114,13 @@ class ConvertJsExpression {
                         return (object) ['length' => $i - $startIndex + 1, 'expr' => $openChar . implode(',', $phpExpressions) . $endChar];
                     }
 
+                }
+
+                if (preg_match('/[\'\"]/', $subChar)) {
+                    $str = $getString($i, $subChar);
+                    $subExpr .= $str;
+                    $i += strlen($str);
+                    continue;
                 }
 
                 $subExpr .= $subChar;

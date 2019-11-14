@@ -21,6 +21,7 @@ $data = [
     'stylee' => 'color:green',
     'nulltest' => (object) ['value' => null],
     'multiParamFunc' => function ($nr1, $nr2) {return $nr1 + $nr2;},
+    'func' => function ($text) {return $text;},
 ];
 
 $vue = new \VuePre\Engine();

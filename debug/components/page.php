@@ -17,6 +17,7 @@
         <div style="url('test')" :style="'url(\'test\')'">1</div>
         <div style="url('test')">2</div>
         <div :class="{'background-image': 'url(\'/illustrations/automation.svg\')'}">3</div>
+        <div>Func: {{ func('text,text') }}</div>
         <div>1 {{ (typeof(myObject.test) == 'undefined') ? 'Undefined' : 'Defined' }}</div>
         <div>2 {{ (typeof(myObject.myProp) == 'undefined') ? 'Undefined' : 'Defined' }}</div>
         <div>3 {{ myObject.test ? 'Defined' : 'Undefined' }}</div>
@@ -93,7 +94,8 @@
           },
           multiParamFunc: function(nr1, nr2){
               return nr1 + nr2;
-          }
+          },
+          func: function(x){ return x; }
         },
         created: function(){
             console.log(this.multiParamFunc);
