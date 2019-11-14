@@ -24,9 +24,14 @@ class ConvertJsExpression {
 
         $expr = $this->expression;
 
-        // dump('O: ' . $expr);
-        $result = $this->parseValue($expr);
-        // dump('R: ' . $result);
+        try {
+            // dump('O: ' . $expr);
+            $result = $this->parseValue($expr);
+            // dump('R: ' . $result);
+        } catch (\Exception $e) {
+            $this->fail();
+        }
+
         return $result;
     }
 

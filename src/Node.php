@@ -193,7 +193,7 @@ class Node {
                 $currentStyle = $node->getAttribute('style');
                 $node->setAttribute($name, '_VUEPRE_STYLE_');
                 $phpExpr = ConvertJsExpression::convert($attribute->value, ['inAttribute' => true]);
-                $this->settings->style = "'" . $currentStyle . " ' . (" . $phpExpr . ")";
+                $this->settings->style = "'" . addslashes($currentStyle) . " ' . (" . $phpExpr . ")";
                 continue;
             }
 
