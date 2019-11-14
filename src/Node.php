@@ -217,7 +217,7 @@ class Node {
                 $node->setAttribute($name, '_VUEPRE_CLASS_');
             }
             if ($name === 'style' && !$this->settings->style) {
-                $this->settings->style = "'" . ($attribute->value) . "'";
+                $this->settings->style = "'" . addslashes($attribute->value) . "'";
                 $node->setAttribute($name, '_VUEPRE_STYLE_');
             }
         }

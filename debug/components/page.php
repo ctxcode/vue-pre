@@ -14,7 +14,9 @@
         <div>SHOW: <span v-if="true || false">THIS</span></div>
         <div>Class: {{ { test: true ? 'true' : 'false' } }}</div>
         <div class="class_test">{{ 420 }}</div>
-        <div style="url('test')" :style="'url(\'test\')'"></div>
+        <div style="url('test')" :style="'url(\'test\')'">1</div>
+        <div style="url('test')">2</div>
+        <div :class="{'background-image': 'url(\'/illustrations/automation.svg\')'}">3</div>
         <div>1 {{ (typeof(myObject.test) == 'undefined') ? 'Undefined' : 'Defined' }}</div>
         <div>2 {{ (typeof(myObject.myProp) == 'undefined') ? 'Undefined' : 'Defined' }}</div>
         <div>3 {{ myObject.test ? 'Defined' : 'Undefined' }}</div>
