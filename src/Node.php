@@ -225,6 +225,7 @@ class Node {
 
         if ($this->settings->isRootEl) {
             if (!$node->hasAttribute('class')) {
+                $this->settings->class = '';
                 $node->setAttribute('class', '_VUEPRE_CLASS_');
             }
         }
