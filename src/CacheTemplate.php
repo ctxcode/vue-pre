@@ -38,6 +38,7 @@ class CacheTemplate {
 
     public function addDomNode(DOMNode $node) {
         $cacheNode = new Node($this);
+        $cacheNode->settings->isRootEl = true;
         $cacheNode->parseDomNode($node);
         $this->nodes[] = $cacheNode->export();
     }

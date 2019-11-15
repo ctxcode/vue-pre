@@ -23,6 +23,7 @@ class Node {
             'childNodes' => [],
             //
             'isTemplate' => false,
+            'isRootEl' => false,
             'isComponent' => null,
             //
             'vfor' => null,
@@ -219,6 +220,12 @@ class Node {
             if ($name === 'style' && !$this->settings->style) {
                 $this->settings->style = "'" . addslashes($attribute->value) . "'";
                 $node->setAttribute($name, '_VUEPRE_STYLE_');
+            }
+        }
+
+        if ($this->settings->isRootEl) {
+            if (!$node->hasAttribute('class')) {
+                $node->setAttribute('class', '_VUEPRE_CLASS_');
             }
         }
     }
