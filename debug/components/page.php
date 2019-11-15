@@ -35,6 +35,12 @@
         <div>{{ ([1, myVar,3].indexOf(myVar) === 1) ? 'Found' : 'Not found' }}</div>
         <div>Global: {{ myGlobal }}</div>
         <div>MultiParamFunc: {{ multiParamFunc(1, 2) }}</div>
+        <div><input :placeholder="'test'"></div>
+
+        <video controls width="250" :src="'https://thumbs.gfycat.com/EvilObedientAnaconda-mobile.mp4'">
+            <track default kind="captions" :srclang="'en'" :src="'https://thumbs.gfycat.com/EvilObedientAnaconda-mobile.mp4'"/>
+            Sorry, your browser doesn't support embedded videos.
+        </video>
 
         <div :class="myclass">Class binding</div>
         <div :class="toggle ? 'blue' : 'orange'">Class binding</div>
