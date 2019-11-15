@@ -16,6 +16,7 @@
         <div class="class_test">{{ 420 }}</div>
         <div style="url('test')" :style="'url(\'test\')'">1</div>
         <div style="url('test')">2</div>
+        <div :style="{'background-image': 'url(\'/illustrations/automation.svg\')'}">3</div>
         <div :class="{'background-image': 'url(\'/illustrations/automation.svg\')'}">3</div>
         <div>Func: {{ func('text,text') }}</div>
         <div>1 {{ (typeof(myObject.test) == 'undefined') ? 'Undefined' : 'Defined' }}</div>

@@ -5,7 +5,7 @@ namespace VuePre;
 class ConvertJsExpression {
 
     private $expression;
-    private $inAttribute = false;
+    private $inAttribute = null;
 
     public static function convert(String $expr, $options = []) {
         $ex = new self();
@@ -13,7 +13,7 @@ class ConvertJsExpression {
 
         // Check options
         if (isset($options['inAttribute'])) {
-            $ex->inAttribute = $options['inAttribute'] ? true : false;
+            $ex->inAttribute = $options['inAttribute'];
         }
 
         //
@@ -182,7 +182,7 @@ class ConvertJsExpression {
                             // Object
                             $subExpr = $parseBetween($i, '{', '}', true, true);
                             if ($this->inAttribute) {
-                                $valueExpr .= '\VuePre\ConvertJsExpression::handleArrayInAttribute(';
+                                $valueExpr .= '\VuePre\ConvertJsExpression::handleArrayInAttribute("' . $this->inAttribute . '", ';
                             } else {
                                 $valueExpr .= '\VuePre\ConvertJsExpression::handleArrayToString(';
                             }
@@ -448,14 +448,28 @@ class ConvertJsExpression {
         return $type;
     }
 
-    public static function handleArrayInAttribute($array) {
-        $classes = [];
-        foreach ($array as $className => $value) {
-            if ($value) {
-                $classes[] = $className;
+    public static function handleArrayInAttribute($name, $array) {
+        if ($name == 'class') {
+            $classes = [];
+            foreach ($array as $className => $value) {
+                $className = str_replace("'", '', $className);
+                if ($value) {
+                    $classes[] = $className;
+                }
             }
+            return implode(' ', $classes);
         }
-        return implode(' ', $classes);
+        if ($name == 'style') {
+            $styles = [];
+            foreach ($array as $prop => $value) {
+                $prop = str_replace("'", '', $prop);
+                if ($value) {
+                    $styles[] = $prop . ': ' . $value . ';';
+                }
+            }
+            return implode(' ', $styles);
+        }
+        return '';
     }
     public static function handleArrayToString($array) {
         return json_encode($array);
