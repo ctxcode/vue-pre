@@ -217,6 +217,11 @@ $vue->getRenderedComponentNames();
 ->renderHtml(String $html, Array $data)
 ->renderComponent(String $componentName, Array $data)
 
+// Optional settings
+->ignoreAttributes(Array $attributeNames)
+->unignoreAttributes(Array $attributeNames)
+->getIgnoredAttributes() : Array $attributeNames
+
 // Generating scripts
 ->getScripts($idPrefix = 'vue-template-');
 ->getTemplateScripts($idPrefix = 'vue-template-');

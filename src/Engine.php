@@ -30,6 +30,7 @@ class Engine {
 
     private $slotHtml = [];
     private $globalData = [];
+    private $_ignoreAttributes = [];
 
     private static $fileCache = [];
 
@@ -68,6 +69,21 @@ class Engine {
         }
     }
 
+    public function ignoreAttributes($ignores) {
+        foreach ($ignores as $ig) {
+            $this->_ignoreAttributes[] = $ig;
+        }
+        $this->_ignoreAttributes = array_unique($this->_ignoreAttributes);
+    }
+    public function unignoreAttributes($ignores) {
+        foreach ($ignores as $ig) {
+            $index = array_search($ig, $this->_ignoreAttributes);
+            if ($index !== false) {
+                array_splice($this->_ignoreAttributes, $index, 1);
+            }
+        }
+    }
+
     /////////////////////////
     // Getters / Setters
     /////////////////////////
@@ -82,6 +98,10 @@ class Engine {
 
     public function getGlobals() {
         return $this->globalData;
+    }
+
+    public function getIgnoredAttributes() {
+        return $this->_ignoreAttributes;
     }
 
     /////////////////////////

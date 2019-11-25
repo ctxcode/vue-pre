@@ -19,6 +19,7 @@
         <div :style="{'background-image': 'url(\'/illustrations/automation.svg\')'}">3</div>
         <div :class="{'background-image': 'url(\'/illustrations/automation.svg\')'}">3</div>
         <div>Func: {{ func('text,text') }}</div>
+        <div :my-attr-1="'test1'" v-bind:my-attr-2="'test2'">Attribute test</div>
         <div>1 {{ (typeof(myObject.test) == 'undefined') ? 'Undefined' : 'Defined' }}</div>
         <div>2 {{ (typeof(myObject.myProp) == 'undefined') ? 'Undefined' : 'Defined' }}</div>
         <div>3 {{ myObject.test ? 'Defined' : 'Undefined' }}</div>

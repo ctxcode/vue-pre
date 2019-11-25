@@ -172,7 +172,7 @@ class Node {
         $removeAttrs = [];
         foreach (iterator_to_array($node->attributes) as $attribute) {
 
-            if (!preg_match('/^:[\w-]+$/', $attribute->name)) {
+            if (!preg_match('/^(?:v-bind)?:([\w-]+)$/', $attribute->name, $matches)) {
                 continue;
             }
 
@@ -180,7 +180,7 @@ class Node {
             $node->removeAttribute($attribute->name);
 
             // Handle attribute
-            $name = substr($attribute->name, 1);
+            $name = $matches[1];
 
             if ($name === 'class') {
                 $currentClass = $node->getAttribute('class');

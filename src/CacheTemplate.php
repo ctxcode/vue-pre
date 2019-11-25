@@ -154,7 +154,7 @@ class CacheTemplate {
         if (isset($node->bindedValues)) {
             foreach ($node->bindedValues as $k => $expr) {
                 $replace = '';
-                if (in_array($k, ['href', 'placeholder', 'src', 'type', 'srclang', 'poster'], true)) {
+                if (!in_array($k, $this->engine->getIgnoredAttributes(), true)) {
                     $replace = $this->eval($expr, $data);
                 }
                 $html = str_replace('_VUEPRE_ATR_' . $k . '_ATREND_', $replace, $html);
