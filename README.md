@@ -260,30 +260,14 @@ product.active ? product.name : product.category.name
 # Methods using $vuePre->setMethods(['myFunc'=> function(){ ... }])
 product.active ? myFunc(product.name) : null
 ```
-## JS expressions | Unsupported
-
-```
-# Computed variables (see note in "Todo" section)
-```
-
-## JS expressions | Common errors
-
-```
-# Nested comparisons
-ERROR: [1, myVar,3].indexOf(myVar) === 1 ? 'Found' : 'Not found'
-FIX: ([1, myVar,3].indexOf(myVar) === 1) ? 'Found' : 'Not found'
-```
-Currently i don't have many examples. More will be added later. Feel free to make an issue if you have trouble parsing a certain expression.
-
 
 ## Todos
 
 Note: Feel free to make an issue for these, so i can make them a prority. The only reason these are not implemented yet is because of low priority.
 
-- Attributes `v-model` `:value` `:selected` `:checked` `:style`
 - Custom error handlers
 - Options: 
-    - `ignoreVariableNotFound` `ignoreMethodNotFound`
+    - `ignoreVariableNotFound`
     - `ignoreVariableNames` `ignoreMethodNames`
     - `ignoreSubComponents` `ignoreSubComponentNames`
 

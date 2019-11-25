@@ -5,6 +5,7 @@
     <layout :layout-data="layoutData">
 
         <!-- output && expressions -->
+        <div>{{ [1, myVar,3].indexOf(myVar) === 1 ? 'Found' : 'Not found' }}</div>
         <div>DoubleTest: <span>{{ { opacity: true ? 1 : 0.5 } }}</span></div>
         <div>DoubleTest: <span>{{ { opacity: false ? 1 : 0.5 } }}</span></div>
         <div>NotTest: <span>{{ !myObject.myProp ? 1 : 0.5 }}</span></div>
